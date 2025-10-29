@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import * as React from 'react';
 
 import type { InboxEmail, SummarizationState } from '@/lib/types';
 import { inboxEmails } from '@/lib/mock-data';
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { summarizeEmailAction, analyzeUrlAction } from '@/app/actions';
@@ -368,5 +370,3 @@ export function Inbox() {
     </>
   );
 }
-
-    
