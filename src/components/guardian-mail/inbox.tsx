@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
@@ -12,22 +13,65 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText } from 'lucide-react';
+import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
-import { summarizeEmailAction } from '@/app/actions';
+import { summarizeEmailAction, analyzeUrlAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 export function Inbox() {
   const [selectedEmail, setSelectedEmail] = useState<InboxEmail | null>(inboxEmails[0]);
   const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
+  const [processedEmailBody, setProcessedEmailBody] = useState<string | null>(null);
 
   const { setAnalyzeEmailFromInbox } = useDashboardState();
   const router = useRouter();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (selectedEmail) {
+      setProcessedEmailBody(null); // Reset while processing
+      const processEmailBody = async () => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(selectedEmail.body, 'text/html');
+        const links = Array.from(doc.querySelectorAll('a'));
+        
+        if (links.length === 0) {
+          setProcessedEmailBody(selectedEmail.body);
+          return;
+        }
+
+        const riskPromises = links.map(link => 
+          analyzeUrlAction({ url: link.href })
+            .then(result => ({ href: link.href, ...result }))
+        );
+
+        const results = await Promise.all(riskPromises);
+
+        results.forEach(({ href, data, error }) => {
+          const link = doc.querySelector(`a[href="${href}"]`);
+          if (link) {
+            const wrapper = doc.createElement('span');
+            wrapper.className = 'inline-flex items-center gap-1';
+            
+            const icon = doc.createElement('span');
+            icon.dataset.risk = error ? 'unknown' : (data?.riskScore ?? 0) > 0.7 ? 'high' : (data?.riskScore ?? 0) > 0.4 ? 'medium' : 'low';
+            
+            link.parentNode?.insertBefore(wrapper, link);
+            wrapper.appendChild(link);
+            wrapper.appendChild(icon);
+          }
+        });
+
+        setProcessedEmailBody(doc.body.innerHTML);
+      };
+
+      processEmailBody();
+    }
+  }, [selectedEmail]);
 
   const handleAnalyzeClick = () => {
     if (selectedEmail) {
@@ -70,6 +114,129 @@ export function Inbox() {
       setSummarizationState({ status: 'success', result: data, error: null });
     }
   }
+  
+  const renderProcessedBody = () => {
+    if (!processedEmailBody) {
+      return (
+         <div className="prose prose-sm dark:prose-invert max-w-none">
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-3/4 mb-2" />
+            <Skeleton className="h-4 w-5/6" />
+         </div>
+      );
+    }
+  
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(processedEmailBody, 'text/html');
+    const elements = Array.from(doc.body.childNodes);
+  
+    const toReactNode = (node: ChildNode, index: number): React.ReactNode => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      }
+  
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        const children = Array.from(el.childNodes).map(toReactNode);
+        
+        if (el.tagName.toLowerCase() === 'span' && el.dataset.risk) {
+            const risk = el.dataset.risk;
+            let Icon = Shield;
+            let color = "text-gray-400";
+            let tooltipText = "Risk Unknown";
+
+            if (risk === 'low') {
+                Icon = ShieldCheck;
+                color = "text-green-500";
+                tooltipText = "This link is likely safe.";
+            } else if (risk === 'medium') {
+                Icon = ShieldAlert;
+                color = "text-yellow-500";
+                tooltipText = "This link is potentially suspicious. Proceed with caution.";
+            } else if (risk === 'high') {
+                Icon = ShieldAlert;
+                color = "text-red-500";
+                tooltipText = "This link is considered high-risk. Do not click.";
+            }
+
+            return (
+                <TooltipProvider key={index}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1">
+                                {children}
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <div className="flex items-center gap-2">
+                                <Icon className={cn("size-4", color)} />
+                                <p>{tooltipText}</p>
+                           </div>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )
+        }
+
+        if (el.tagName.toLowerCase() === 'a') {
+            const riskIconSpan = el.nextElementSibling;
+            if (riskIconSpan && riskIconSpan.tagName.toLowerCase() === 'span' && riskIconSpan.dataset.risk) {
+                // This link is already wrapped, return its content
+                return React.createElement(el.tagName.toLowerCase(), { href: el.getAttribute('href'), target: "_blank", rel: "noopener noreferrer", key: index }, children);
+            }
+        }
+        
+        if(el.tagName.toLowerCase() === 'span' && el.querySelector('a')) {
+             const anchor = el.querySelector('a')!;
+             const iconSpan = el.querySelector('span[data-risk]') as HTMLElement;
+             const risk = iconSpan?.dataset.risk;
+
+             let Icon = Shield;
+             let color = "text-gray-400";
+             let tooltipText = "Risk Unknown";
+ 
+             if (risk === 'low') {
+                 Icon = ShieldCheck;
+                 color = "text-green-500";
+                 tooltipText = "This link is likely safe.";
+             } else if (risk === 'medium') {
+                 Icon = ShieldAlert;
+                 color = "text-yellow-500";
+                 tooltipText = "This link is potentially suspicious. Proceed with caution.";
+             } else if (risk === 'high') {
+                 Icon = ShieldAlert;
+                 color = "text-red-500";
+                 tooltipText = "This link is considered high-risk. Do not click.";
+             }
+
+             return (
+                <span className="inline-flex items-center gap-1" key={index}>
+                    <a href={anchor.href} target="_blank" rel="noopener noreferrer">{anchor.innerText}</a>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Icon className={cn("size-4 shrink-0", color)} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <div className="flex items-center gap-2">
+                                    <Icon className={cn("size-4", color)} />
+                                    <p>{tooltipText}</p>
+                                </div>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </span>
+             );
+        }
+
+        return React.createElement(el.tagName.toLowerCase(), { key: index }, children);
+      }
+      return null;
+    };
+  
+    return <div className="prose prose-sm dark:prose-invert max-w-none">{elements.map(toReactNode)}</div>;
+  };
+
 
   return (
     <>
@@ -145,9 +312,7 @@ export function Inbox() {
                         <p className="text-sm text-muted-foreground">{selectedEmail.from.email}</p>
                     </div>
                 </div>
-
-                <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: selectedEmail.body }}/>
-
+                {renderProcessedBody()}
                 {selectedEmail.tags && selectedEmail.tags.length > 0 && (
                     <div className="mt-6 flex gap-2">
                         {selectedEmail.tags.map(tag => (
@@ -203,3 +368,5 @@ export function Inbox() {
     </>
   );
 }
+
+    

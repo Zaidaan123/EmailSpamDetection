@@ -1,3 +1,4 @@
+
 import type { MockEmail, InboxEmail, SentEmail } from '@/lib/types';
 
 export const mockEmails: MockEmail[] = [
@@ -14,7 +15,7 @@ We have detected unusual activity on your account. For your security, we have te
 
 To restore access, you must verify your identity immediately. Please click the link below to login and confirm your details.
 
-Click here: http://bit.ly/verify-acct-now
+<a href="http://bit.ly/verify-acct-now">Click here to verify</a>
 
 Failure to do so within 24 hours will result in permanent account closure.
 
@@ -35,7 +36,7 @@ Here is the weekly update for Project Alpha.
 
 We have successfully completed the user authentication module and are on track with the project timeline. Please review the latest documentation attached and on our project portal.
 
-Docs link: https://your-company.com/docs/project-alpha
+Docs link: <a href="https://your-company.com/docs/project-alpha">https://your-company.com/docs/project-alpha</a>
 
 Let's sync up on Monday to discuss the next phase.
 
@@ -52,7 +53,7 @@ export const inboxEmails: InboxEmail[] = [
       from: { name: 'Alice', email: 'alice@example.com', avatar: 'https://i.pravatar.cc/150?u=alice' },
       subject: 'Project discussion',
       snippet: 'Hi team, let\'s discuss the new project features.',
-      body: '<p>Hi team,</p><p>Let\'s discuss the new project features. I have some ideas I\'d like to share.</p><p>Best,</p><p>Alice</p>',
+      body: '<p>Hi team,</p><p>Let\'s discuss the new project features. I have some ideas I\'d like to share. You can check the details <a href="https://example.com/project-details">here</a>.</p><p>Best,</p><p>Alice</p>',
       date: '2024-05-20T10:00:00Z',
       unread: true,
       tags: ['work', 'project'],
@@ -62,7 +63,7 @@ export const inboxEmails: InboxEmail[] = [
       from: { name: 'Bob', email: 'bob@example.com', avatar: 'https://i.pravatar.cc/150?u=bob' },
       subject: 'Lunch today?',
       snippet: 'Hey, are you free for lunch today at 1 PM?',
-      body: '<p>Hey,</p><p>Are you free for lunch today at 1 PM? I know a great new place.</p><p>Cheers,</p><p>Bob</p>',
+      body: '<p>Hey,</p><p>Are you free for lunch today at 1 PM? I know a great new place. Check it out: <a href="https://example-restaurant.com">The Food Place</a></p><p>Cheers,</p><p>Bob</p>',
       date: '2024-05-20T09:30:00Z',
       unread: true,
       tags: ['social'],
@@ -72,7 +73,7 @@ export const inboxEmails: InboxEmail[] = [
       from: { name: 'Marketing @ CoolApp', email: 'marketing@coolapp.com', avatar: 'https://i.pravatar.cc/150?u=coolapp' },
       subject: 'New features in CoolApp!',
       snippet: 'We\'ve just released some amazing new features you\'ll love.',
-      body: '<p>Hello!</p><p>We\'ve just released some amazing new features you\'ll love. Check them out now!</p>',
+      body: '<p>Hello!</p><p>We\'ve just released some amazing new features you\'ll love. <a href="http://bit.ly/coolapp-features">Check them out now!</a></p>',
       date: '2024-05-19T15:00:00Z',
       unread: false,
       tags: ['promotions'],
@@ -108,3 +109,5 @@ export const sentEmails: SentEmail[] = [
       date: '2024-05-20T11:00:00Z',
     },
 ];
+
+    
