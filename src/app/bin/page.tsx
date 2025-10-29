@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { inboxEmails } from '@/lib/mock-data';
 import { InboxEmail } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
