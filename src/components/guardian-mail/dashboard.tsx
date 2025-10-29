@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info, BarChart } from 'lucide-react';
 import { marked } from 'marked';
 
 import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction } from '@/app/actions';
@@ -25,6 +25,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Separator } from '../ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Label } from '../ui/label';
+import { EmailAnalyticsChart } from './email-analytics-chart';
 
 const emailSchema = z.object({
   emailSubject: z.string().min(1, 'Subject is required.'),
@@ -151,6 +152,16 @@ export function GuardianMailDashboard() {
           Leverage our Transformer-driven NLP framework to identify phishing attempts with high precision.
         </p>
       </div>
+
+       <Card className="animate-in fade-in-0 duration-500">
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2"><BarChart /> Security Analytics</CardTitle>
+            <CardDescription>Your email security overview for the last 7 days.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmailAnalyticsChart />
+          </CardContent>
+        </Card>
 
        <Card className="animate-in fade-in-0 duration-500">
         <CardHeader>

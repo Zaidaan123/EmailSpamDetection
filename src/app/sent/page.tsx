@@ -106,7 +106,7 @@ export default function SentPage() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/">
+              <Link href="/ai-settings">
                 <SidebarMenuButton tooltip="AI Settings">
                   <Bot />
                   <span className="font-headline">AI Settings</span>

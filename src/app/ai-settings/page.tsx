@@ -14,18 +14,26 @@ import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
-export default function ProfilePage() {
+export default function AiSettingsPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+
+  // Mock state for AI settings
+  const [sensitivity, setSensitivity] = useState([50]);
+  const [replyTone, setReplyTone] = useState('neutral');
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -33,13 +41,20 @@ export default function ProfilePage() {
     }
   }, [isUserLoading, user, router]);
 
+  const handleSaveChanges = () => {
+    toast({
+        title: 'Settings Saved',
+        description: 'Your AI settings have been updated (simulation).',
+    })
+  }
+
   if (isUserLoading || !user) {
      return (
        <div className="flex h-screen w-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Logo />
             <Skeleton className="h-8 w-48" />
-            <p className="text-sm text-muted-foreground">Loading your profile...</p>
+            <p className="text-sm text-muted-foreground">Loading AI Settings...</p>
           </div>
        </div>
     );
@@ -86,12 +101,10 @@ export default function ProfilePage() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/ai-settings">
-                <SidebarMenuButton tooltip="AI Settings">
+                <SidebarMenuButton tooltip="AI Settings" isActive>
                   <Bot />
                   <span className="font-headline">AI Settings</span>
                 </SidebarMenuButton>
-              </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/">
@@ -107,7 +120,7 @@ export default function ProfilePage() {
           <SidebarMenu>
             <SidebarMenuItem>
                <Link href="/profile">
-                <SidebarMenuButton tooltip={user.email || 'Account'} isActive>
+                <SidebarMenuButton tooltip={user.email || 'Account'}>
                     <UserCircle />
                     <span className="font-headline truncate">{user.email || 'Account'}</span>
                 </SidebarMenuButton>
@@ -119,7 +132,7 @@ export default function ProfilePage() {
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
                 <div className="flex justify-center">
                     <ThemeToggle />
                 </div>
@@ -129,34 +142,53 @@ export default function ProfilePage() {
       </Sidebar>
       <SidebarInset>
         <div className="p-4 md:p-8">
-            <h1 className="text-3xl font-bold font-headline mb-8">User Profile</h1>
+            <h1 className="text-3xl font-bold font-headline mb-8">AI Settings</h1>
             <Card className="max-w-2xl">
                 <CardHeader>
-                    <CardTitle>Account Information</CardTitle>
-                    <CardDescription>Your personal account details.</CardDescription>
+                    <CardTitle>Fine-Tune Your AI Assistant</CardTitle>
+                    <CardDescription>Adjust the behavior of GuardianMail's AI to fit your preferences.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="h-20 w-20">
-                            <AvatarImage src={user.photoURL || undefined} />
-                            <AvatarFallback>
-                                {user.email?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="text-xl font-semibold">{user.displayName || 'No name set'}</p>
-                            <p className="text-muted-foreground">{user.email}</p>
+                <CardContent className="space-y-8">
+                    <div className="space-y-4">
+                        <Label htmlFor="sensitivity" className="text-base font-semibold">Phishing Detection Sensitivity</Label>
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-muted-foreground">Less Strict</span>
+                            <Slider
+                                id="sensitivity"
+                                value={sensitivity}
+                                onValueChange={setSensitivity}
+                                max={100}
+                                step={1}
+                                className="flex-1"
+                            />
+                            <span className="text-sm text-muted-foreground">More Strict</span>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            Adjust how aggressively the AI flags potential phishing emails. Higher sensitivity may result in more false positives.
+                        </p>
                     </div>
-                     <div className="space-y-2">
-                        <h3 className="font-semibold">User ID</h3>
-                        <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md font-mono">{user.uid}</p>
-                     </div>
-                      <div className="space-y-2">
-                        <h3 className="font-semibold">Email Verified</h3>
-                        <p className="text-sm text-muted-foreground">{user.emailVerified ? 'Yes' : 'No'}</p>
-                     </div>
-                     <Button variant="outline" disabled>Edit Profile (coming soon)</Button>
+
+                     <div className="space-y-4">
+                        <Label className="text-base font-semibold">AI-Assisted Reply Tone</Label>
+                        <RadioGroup value={replyTone} onValueChange={setReplyTone} className="flex flex-col sm:flex-row gap-4">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="formal" id="formal" />
+                                <Label htmlFor="formal">Formal</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="neutral" id="neutral" />
+                                <Label htmlFor="neutral">Neutral</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="casual" id="casual" />
+                                <Label htmlFor="casual">Casual</Label>
+                            </div>
+                        </RadioGroup>
+                         <p className="text-xs text-muted-foreground">
+                            Choose the default tone for AI-generated email replies.
+                        </p>
+                    </div>
+                    <Button onClick={handleSaveChanges}>Save Changes</Button>
                 </CardContent>
             </Card>
         </div>

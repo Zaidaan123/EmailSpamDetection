@@ -100,10 +100,12 @@ export default function Home() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="AI Settings">
-                <Bot />
-                <span className="font-headline">AI Settings</span>
-              </SidebarMenuButton>
+              <Link href="/ai-settings">
+                <SidebarMenuButton tooltip="AI Settings">
+                  <Bot />
+                  <span className="font-headline">AI Settings</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton tooltip="Settings">
