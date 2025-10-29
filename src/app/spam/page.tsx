@@ -1,5 +1,4 @@
 'use client';
-
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +10,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { GuardianMailDashboard } from '@/components/guardian-mail/dashboard';
 import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -20,7 +18,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function Home() {
+export default function SpamPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -32,12 +30,12 @@ export default function Home() {
   }, [isUserLoading, user, router]);
 
   if (isUserLoading || !user) {
-    return (
+     return (
        <div className="flex h-screen w-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Logo />
             <Skeleton className="h-8 w-48" />
-            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
        </div>
     );
@@ -52,10 +50,12 @@ export default function Home() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Dashboard" isActive>
-                <LayoutDashboard />
-                <span className="font-headline">Dashboard</span>
-              </SidebarMenuButton>
+              <Link href="/">
+                <SidebarMenuButton tooltip="Dashboard">
+                  <LayoutDashboard />
+                  <span className="font-headline">Dashboard</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/inbox">
@@ -74,36 +74,38 @@ export default function Home() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/spam">
-                <SidebarMenuButton tooltip="Spam">
-                  <ShieldAlert />
-                  <span className="font-headline">Spam</span>
+              <SidebarMenuButton tooltip="Spam" isActive>
+                <ShieldAlert />
+                <span className="font-headline">Spam</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/">
+                <SidebarMenuButton tooltip="AI Settings">
+                  <Bot />
+                  <span className="font-headline">AI Settings</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="AI Settings">
-                <Bot />
-                <span className="font-headline">AI Settings</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Settings">
-                <Settings />
-                <span className="font-headline">Settings</span>
-              </SidebarMenuButton>
+              <Link href="/">
+                <SidebarMenuButton tooltip="Settings">
+                  <Settings />
+                  <span className="font-headline">Settings</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-             <Link href="/profile">
-              <SidebarMenuButton tooltip={user.email || 'Account'}>
-                <UserCircle />
-                <span className="font-headline truncate">{user.email || 'Account'}</span>
-              </SidebarMenuButton>
-              </Link>
+               <Link href="/profile">
+                <SidebarMenuButton tooltip={user.email || 'Account'}>
+                    <UserCircle />
+                    <span className="font-headline truncate">{user.email || 'Account'}</span>
+                </SidebarMenuButton>
+               </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
               <SidebarMenuButton tooltip="Logout" onClick={() => auth.signOut()}>
@@ -115,7 +117,10 @@ export default function Home() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <GuardianMailDashboard />
+         <div className="p-4">
+            <h1 className="text-3xl font-bold font-headline">Spam</h1>
+            <p className="text-muted-foreground">Emails identified as spam will appear here.</p>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

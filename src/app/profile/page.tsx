@@ -10,7 +10,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { Inbox } from '@/components/guardian-mail/inbox';
 import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -18,8 +17,11 @@ import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 
-export default function InboxPage() {
+export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -36,7 +38,7 @@ export default function InboxPage() {
           <div className="flex flex-col items-center gap-4">
             <Logo />
             <Skeleton className="h-8 w-48" />
-            <p className="text-sm text-muted-foreground">Loading your inbox...</p>
+            <p className="text-sm text-muted-foreground">Loading your profile...</p>
           </div>
        </div>
     );
@@ -59,10 +61,12 @@ export default function InboxPage() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Inbox" isActive>
-                <Mail />
-                <span className="font-headline">Inbox</span>
-              </SidebarMenuButton>
+              <Link href="/inbox">
+                <SidebarMenuButton tooltip="Inbox">
+                  <Mail />
+                  <span className="font-headline">Inbox</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
               <Link href="/sent">
@@ -101,12 +105,12 @@ export default function InboxPage() {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/profile">
-                <SidebarMenuButton tooltip={user.email || 'Account'}>
-                  <UserCircle />
-                  <span className="font-headline truncate">{user.email || 'Account'}</span>
+               <Link href="/profile">
+                <SidebarMenuButton tooltip={user.email || 'Account'} isActive>
+                    <UserCircle />
+                    <span className="font-headline truncate">{user.email || 'Account'}</span>
                 </SidebarMenuButton>
-              </Link>
+               </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
               <SidebarMenuButton tooltip="Logout" onClick={() => auth.signOut()}>
@@ -118,7 +122,38 @@ export default function InboxPage() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <Inbox />
+        <div className="p-4 md:p-8">
+            <h1 className="text-3xl font-bold font-headline mb-8">User Profile</h1>
+            <Card className="max-w-2xl">
+                <CardHeader>
+                    <CardTitle>Account Information</CardTitle>
+                    <CardDescription>Your personal account details.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center gap-4">
+                        <Avatar className="h-20 w-20">
+                            <AvatarImage src={user.photoURL || undefined} />
+                            <AvatarFallback>
+                                {user.email?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="text-xl font-semibold">{user.displayName || 'No name set'}</p>
+                            <p className="text-muted-foreground">{user.email}</p>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h3 className="font-semibold">User ID</h3>
+                        <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md font-mono">{user.uid}</p>
+                     </div>
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">Email Verified</h3>
+                        <p className="text-sm text-muted-foreground">{user.emailVerified ? 'Yes' : 'No'}</p>
+                     </div>
+                     <Button variant="outline" disabled>Edit Profile (coming soon)</Button>
+                </CardContent>
+            </Card>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
