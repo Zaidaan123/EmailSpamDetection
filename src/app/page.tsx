@@ -30,19 +30,19 @@ export default function Home() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Inbox" disabled>
+              <SidebarMenuButton tooltip="Inbox">
                 <Mail />
                 <span className="font-headline">Inbox</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="AI Settings" disabled>
+              <SidebarMenuButton tooltip="AI Settings">
                 <Bot />
                 <span className="font-headline">AI Settings</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Settings" disabled>
+              <SidebarMenuButton tooltip="Settings">
                 <Settings />
                 <span className="font-headline">Settings</span>
               </SidebarMenuButton>
