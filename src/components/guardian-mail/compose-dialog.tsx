@@ -19,7 +19,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send } from 'lucide-react';
-import type { SentEmail } from '@/lib/types';
+import type { SentEmail, InboxEmail } from '@/lib/types';
+import { useEmailState } from '@/hooks/use-email-state';
+import { useUser } from '@/firebase';
 
 const formSchema = z.object({
   recipient: z.string().email({ message: 'Please enter a valid recipient email.' }),
@@ -36,6 +38,8 @@ interface ComposeDialogProps {
 export function ComposeDialog({ open, onOpenChange, onEmailSent }: ComposeDialogProps) {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
+  const { user } = useUser();
+  const { setSentEmails, setInboxEmails } = useEmailState();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,6 +51,7 @@ export function ComposeDialog({ open, onOpenChange, onEmailSent }: ComposeDialog
 
     // Simulate sending email
     setTimeout(() => {
+      const now = new Date().toISOString();
       const newSentEmail: SentEmail = {
         id: `sent-${Date.now()}`,
         to: {
@@ -55,10 +60,35 @@ export function ComposeDialog({ open, onOpenChange, onEmailSent }: ComposeDialog
         },
         subject: values.subject,
         body: `<p>${values.body.replace(/\n/g, '<br>')}</p>`,
-        date: new Date().toISOString(),
+        date: now,
       };
-      
+
+      // Add to sender's "Sent" list
       onEmailSent(newSentEmail);
+
+      // "Deliver" the email to the recipient's inbox
+      const newInboxEmail: InboxEmail = {
+        id: `inbox-${Date.now()}`,
+        from: {
+          name: user?.email?.split('@')[0] || 'Sender',
+          email: user?.email || 'sender@example.com',
+          avatar: `https://i.pravatar.cc/150?u=${user?.uid || 'sender'}`,
+        },
+        subject: values.subject,
+        snippet: values.body.substring(0, 100),
+        body: `<p>${values.body.replace(/\n/g, '<br>')}</p>`,
+        date: now,
+        unread: true,
+        starred: false,
+        status: 'inbox',
+        tags: [],
+      };
+
+      // This assumes the recipient exists in our mock/local system
+      // In a real app, this would be a backend operation.
+      // Here, we just add it to the global inbox list.
+      setInboxEmails(prev => [newInboxEmail, ...prev]);
+
       setIsSending(false);
       onOpenChange(false);
       form.reset();
