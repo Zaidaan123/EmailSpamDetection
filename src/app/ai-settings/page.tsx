@@ -11,7 +11,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { useEffect, useState } from 'react';
@@ -133,6 +133,14 @@ export default function AiSettingsPage() {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/bin">
+                <SidebarMenuButton tooltip="Bin">
+                  <Trash2 />
+                  <span className="font-headline">Bin</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/spam">
                 <SidebarMenuButton tooltip="Spam">
@@ -148,7 +156,7 @@ export default function AiSettingsPage() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/">
+              <Link href="/settings">
                 <SidebarMenuButton tooltip="Settings">
                   <Settings />
                   <span className="font-headline">Settings</span>

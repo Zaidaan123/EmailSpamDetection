@@ -11,18 +11,20 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Trash2 } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Bell, Palette, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
-export default function ProfilePage() {
+export default function SettingsPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -39,7 +41,7 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center gap-4">
             <Logo />
             <Skeleton className="h-8 w-48" />
-            <p className="text-sm text-muted-foreground">Loading your profile...</p>
+            <p className="text-sm text-muted-foreground">Loading Settings...</p>
           </div>
        </div>
     );
@@ -77,7 +79,7 @@ export default function ProfilePage() {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
-              <SidebarMenuItem>
+             <SidebarMenuItem>
               <Link href="/bin">
                 <SidebarMenuButton tooltip="Bin">
                   <Trash2 />
@@ -94,20 +96,18 @@ export default function ProfilePage() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/ai-settings">
-                <SidebarMenuButton tooltip="AI Settings">
-                  <Bot />
-                  <span className="font-headline">AI Settings</span>
-                </SidebarMenuButton>
-              </Link>
+                <Link href="/ai-settings">
+                    <SidebarMenuButton tooltip="AI Settings">
+                    <Bot />
+                    <span className="font-headline">AI Settings</span>
+                    </SidebarMenuButton>
+                </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/settings">
-                <SidebarMenuButton tooltip="Settings">
+                <SidebarMenuButton tooltip="Settings" isActive>
                   <Settings />
                   <span className="font-headline">Settings</span>
                 </SidebarMenuButton>
-              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
@@ -115,7 +115,7 @@ export default function ProfilePage() {
           <SidebarMenu>
             <SidebarMenuItem>
                <Link href="/profile">
-                <SidebarMenuButton tooltip={user.email || 'Account'} isActive>
+                <SidebarMenuButton tooltip={user.email || 'Account'}>
                     <UserCircle />
                     <span className="font-headline truncate">{user.email || 'Account'}</span>
                 </SidebarMenuButton>
@@ -127,7 +127,7 @@ export default function ProfilePage() {
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
                 <div className="flex justify-center">
                     <ThemeToggle />
                 </div>
@@ -137,34 +137,51 @@ export default function ProfilePage() {
       </Sidebar>
       <SidebarInset>
         <div className="p-4 md:p-8">
-            <h1 className="text-3xl font-bold font-headline mb-8">User Profile</h1>
+            <h1 className="text-3xl font-bold font-headline mb-8">Settings</h1>
             <Card className="max-w-2xl">
                 <CardHeader>
-                    <CardTitle>Account Information</CardTitle>
-                    <CardDescription>Your personal account details.</CardDescription>
+                    <CardTitle>Application Settings</CardTitle>
+                    <CardDescription>Manage your application preferences.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="h-20 w-20">
-                            <AvatarImage src={user.photoURL || undefined} />
-                            <AvatarFallback>
-                                {user.email?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="text-xl font-semibold">{user.displayName || 'No name set'}</p>
-                            <p className="text-muted-foreground">{user.email}</p>
+                <CardContent className="space-y-8">
+                    <div className="space-y-4">
+                        <h3 className="font-semibold flex items-center gap-2"><Palette/> Appearance</h3>
+                         <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div>
+                                <Label htmlFor="theme-mode">Theme</Label>
+                                <p className="text-sm text-muted-foreground">Select your preferred color scheme.</p>
+                            </div>
+                            <ThemeToggle />
                         </div>
                     </div>
-                     <div className="space-y-2">
-                        <h3 className="font-semibold">User ID</h3>
-                        <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md font-mono">{user.uid}</p>
-                     </div>
-                      <div className="space-y-2">
-                        <h3 className="font-semibold">Email Verified</h3>
-                        <p className="text-sm text-muted-foreground">{user.emailVerified ? 'Yes' : 'No'}</p>
-                     </div>
-                     <Button variant="outline" disabled>Edit Profile (coming soon)</Button>
+                    
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <h3 className="font-semibold flex items-center gap-2"><Bell /> Notifications</h3>
+                         <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div>
+                                <Label htmlFor="desktop-notifications">Desktop Notifications</Label>
+                                <p className="text-sm text-muted-foreground">Receive notifications on your desktop.</p>
+                            </div>
+                            <Switch id="desktop-notifications" disabled />
+                        </div>
+                    </div>
+                    
+                     <Separator />
+
+                     <div className="space-y-4">
+                        <h3 className="font-semibold flex items-center gap-2"><UserCircle /> Account</h3>
+                         <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div>
+                                <Label>Profile</Label>
+                                <p className="text-sm text-muted-foreground">View and manage your account details.</p>
+                            </div>
+                            <Button variant="outline" asChild>
+                                <Link href="/profile">Go to Profile</Link>
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

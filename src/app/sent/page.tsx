@@ -127,7 +127,7 @@ export default function SentPage() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/">
+              <Link href="/settings">
                 <SidebarMenuButton tooltip="Settings">
                   <Settings />
                   <span className="font-headline">Settings</span>

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { GuardianMailDashboard } from '@/components/guardian-mail/dashboard';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
 import type { SentEmail } from '@/lib/types';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useEmailState } from '@/hooks/use-email-state';
 
 
 export default function Home() {
@@ -30,10 +31,10 @@ export default function Home() {
   const auth = useAuth();
   const router = useRouter();
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+  const { setSentEmails } = useEmailState();
 
   const handleEmailSent = (email: SentEmail) => {
-    setSentEmails(prev => [...prev, email]);
+    setSentEmails(prev => [email, ...prev]);
   };
 
 
@@ -91,6 +92,14 @@ export default function Home() {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/bin">
+                <SidebarMenuButton tooltip="Bin">
+                  <Trash2 />
+                  <span className="font-headline">Bin</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/spam">
                 <SidebarMenuButton tooltip="Spam">
@@ -108,10 +117,12 @@ export default function Home() {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Settings">
-                <Settings />
-                <span className="font-headline">Settings</span>
-              </SidebarMenuButton>
+              <Link href="/settings">
+                <SidebarMenuButton tooltip="Settings">
+                  <Settings />
+                  <span className="font-headline">Settings</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
