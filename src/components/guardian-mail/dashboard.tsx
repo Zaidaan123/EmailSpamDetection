@@ -1,15 +1,15 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info, BarChart } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info, BarChart, MessageCircle, Send, User } from 'lucide-react';
 import { marked } from 'marked';
 
-import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction, summarizeEmailAction } from '@/app/actions';
-import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState, UserSettings, SummarizationState } from '@/lib/types';
+import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction, securityCoachAction, summarizeEmailAction } from '@/app/actions';
+import type { CoachMessage, EmailAnalysisState, ReplyGenerationState, SecurityBriefingState, SummarizationState, UrlAnalysisState, UserSettings } from '@/lib/types';
 import { mockEmails } from '@/lib/mock-data';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 
@@ -29,6 +29,7 @@ import { Label } from '../ui/label';
 import { EmailAnalyticsChart } from './email-analytics-chart';
 import { useFirestore, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { ScrollArea } from '../ui/scroll-area';
 
 const emailSchema = z.object({
   emailSubject: z.string().min(1, 'Subject is required.'),
@@ -42,6 +43,10 @@ const urlSchema = z.object({
   url: z.string().url('Please enter a valid URL.'),
 });
 
+const coachSchema = z.object({
+    question: z.string().min(1, 'Cannot send an empty message.'),
+});
+
 export function GuardianMailDashboard() {
   const { toast } = useToast();
   const { analyzeEmailFromInbox, clearAnalyzeEmailFromInbox } = useDashboardState();
@@ -53,6 +58,11 @@ export function GuardianMailDashboard() {
   const [briefingState, setBriefingState] = useState<SecurityBriefingState>({ status: 'idle', result: null, error: null });
   const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
   
+  const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
+  const [isCoachLoading, setIsCoachLoading] = useState(false);
+  const coachScrollAreaRef = useRef<HTMLDivElement>(null);
+
+
   const { user } = useUser();
   const firestore = useFirestore();
 
@@ -73,6 +83,12 @@ export function GuardianMailDashboard() {
     resolver: zodResolver(urlSchema),
     defaultValues: { url: '' },
   });
+
+  const coachForm = useForm<z.infer<typeof coachSchema>>({
+    resolver: zodResolver(coachSchema),
+    defaultValues: { question: '' },
+  });
+
 
   useEffect(() => {
     const fetchBriefing = async () => {
@@ -158,6 +174,34 @@ export function GuardianMailDashboard() {
     }
   };
 
+  const handleCoachSubmit = async (values: z.infer<typeof coachSchema>) => {
+    const userMessage: CoachMessage = { role: 'user', content: values.question };
+    setCoachMessages(prev => [...prev, userMessage]);
+    setIsCoachLoading(true);
+    coachForm.reset();
+
+    const history = coachMessages.map(m => ({ role: m.role, content: m.content }));
+
+    const { data, error } = await securityCoachAction({ question: values.question, history });
+
+    if (error) {
+        const errorMessage: CoachMessage = { role: 'model', content: `Sorry, I ran into an error: ${error}` };
+        setCoachMessages(prev => [...prev, errorMessage]);
+        toast({ variant: 'destructive', title: 'Security Coach Error', description: error });
+    } else if (data) {
+        const modelMessage: CoachMessage = { role: 'model', content: data.answer };
+        setCoachMessages(prev => [...prev, modelMessage]);
+    }
+    setIsCoachLoading(false);
+  };
+  
+  useEffect(() => {
+    if (coachScrollAreaRef.current) {
+        coachScrollAreaRef.current.scrollTo(0, coachScrollAreaRef.current.scrollHeight);
+    }
+  }, [coachMessages]);
+
+
   const loadMockEmail = (index: number) => {
     const email = mockEmails[index];
     emailForm.reset({
@@ -187,8 +231,9 @@ export function GuardianMailDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-xl">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="coach">Security Coach</TabsTrigger>
           <TabsTrigger value="email">Email Analysis</TabsTrigger>
           <TabsTrigger value="url">URL Analysis</TabsTrigger>
         </TabsList>
@@ -227,6 +272,58 @@ export function GuardianMailDashboard() {
                     </CardContent>
                 </Card>
             </div>
+        </TabsContent>
+        <TabsContent value="coach" className="mt-4">
+            <Card className="h-[70vh] flex flex-col">
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><MessageCircle /> Security Coach</CardTitle>
+                    <CardDescription>Ask "Guardian," our AI security expert, any questions about email security.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden p-0">
+                    <ScrollArea className="h-full" ref={coachScrollAreaRef}>
+                        <div className="p-6 space-y-4">
+                            {coachMessages.length === 0 && (
+                                <div className="text-center text-muted-foreground">
+                                    <p>Ask me anything about cybersecurity!</p>
+                                    <p className="text-xs">e.g., "What is phishing?" or "How can I spot a fake email?"</p>
+                                </div>
+                            )}
+                            {coachMessages.map((msg, index) => (
+                                <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                   {msg.role === 'model' && <Bot className="size-6 shrink-0 text-primary" />}
+                                    <div className={`rounded-lg px-4 py-2 max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                       <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: marked(msg.content) }} />
+                                    </div>
+                                    {msg.role === 'user' && <User className="size-6 shrink-0" />}
+                                </div>
+                            ))}
+                             {isCoachLoading && (
+                                <div className="flex items-start gap-3">
+                                    <Bot className="size-6 shrink-0 text-primary" />
+                                    <div className="rounded-lg px-4 py-2 bg-muted flex items-center">
+                                        <Loader2 className="size-5 animate-spin"/>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+                <CardFooter className="border-t pt-6">
+                     <Form {...coachForm}>
+                        <form onSubmit={coachForm.handleSubmit(handleCoachSubmit)} className="w-full flex items-center gap-2">
+                           <FormField control={coachForm.control} name="question" render={({ field }) => (
+                                <FormItem className="flex-1">
+                                    <FormControl>
+                                        <Input placeholder="Type your security question..." {...field} disabled={isCoachLoading} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <Button type="submit" disabled={isCoachLoading}><Send/></Button>
+                        </form>
+                    </Form>
+                </CardFooter>
+            </Card>
         </TabsContent>
         <TabsContent value="email">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
@@ -472,5 +569,3 @@ export function GuardianMailDashboard() {
     </div>
   );
 }
-
-    

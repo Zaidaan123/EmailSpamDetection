@@ -6,6 +6,7 @@ import { assessUrlRisk, UrlRiskAssessmentInput, UrlRiskAssessmentOutput } from '
 import { aiAssistedReply, AiAssistedReplyInput, AiAssistedReplyOutput } from '@/ai/flows/ai-assisted-reply';
 import { summarizeEmail, SummarizeEmailInput, SummarizeEmailOutput } from '@/ai/flows/summarize-email';
 import { generateSecurityBriefing, SecurityBriefingInput, SecurityBriefingOutput } from '@/ai/flows/security-briefing';
+import { securityCoach, SecurityCoachInput, SecurityCoachOutput } from '@/ai/flows/security-coach';
 
 export async function analyzeEmailAction(input: DetectPhishingEmailInput): Promise<{ data: DetectPhishingEmailOutput | null; error: string | null }> {
   try {
@@ -59,5 +60,16 @@ export async function generateSecurityBriefingAction(input: SecurityBriefingInpu
         console.error(e);
         const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
         return { data: null, error: `Failed to generate briefing: ${errorMessage}` };
+    }
+}
+
+export async function securityCoachAction(input: SecurityCoachInput): Promise<{ data: SecurityCoachOutput | null; error: string | null }> {
+    try {
+        const result = await securityCoach(input);
+        return { data: result, error: null };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+        return { data: null, error: `Failed to generate response: ${errorMessage}` };
     }
 }
