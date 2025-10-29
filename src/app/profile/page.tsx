@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -117,6 +118,11 @@ export default function ProfilePage() {
                 <LogOut />
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <div className="flex justify-center">
+                    <ThemeToggle />
+                </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

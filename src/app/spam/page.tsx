@@ -17,6 +17,7 @@ import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function SpamPage() {
   const { user, isUserLoading } = useUser();
@@ -112,6 +113,11 @@ export default function SpamPage() {
                 <LogOut />
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <div className="flex justify-center">
+                    <ThemeToggle />
+                </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

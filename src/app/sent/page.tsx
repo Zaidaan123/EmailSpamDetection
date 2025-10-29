@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function SentPage() {
   const { user, isUserLoading } = useUser();
@@ -137,6 +138,11 @@ export default function SentPage() {
                 <LogOut />
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <div className="flex justify-center">
+                    <ThemeToggle />
+                </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

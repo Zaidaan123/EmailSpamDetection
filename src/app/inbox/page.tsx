@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
 import type { SentEmail } from '@/lib/types';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 export default function InboxPage() {
@@ -134,6 +135,11 @@ export default function InboxPage() {
                 <LogOut />
                 <span className="font-headline">Logout</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <div className="flex justify-center">
+                    <ThemeToggle />
+                </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
