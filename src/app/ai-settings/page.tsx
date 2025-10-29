@@ -13,8 +13,8 @@ import {
 import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { useEffect, useState, useMemo } from 'react';
+import { useAuth, useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -24,9 +24,12 @@ import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { UserSettings } from '@/lib/types';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
+
 
 export default function AiSettingsPage() {
   const { user, isUserLoading } = useUser();
@@ -36,30 +39,22 @@ export default function AiSettingsPage() {
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<UserSettings>({ sensitivity: 50, replyTone: 'neutral' });
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-
+  
   const settingsDocRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'settings', 'ai');
   }, [firestore, user]);
 
+  const { data: settingsData, isLoading: isLoadingSettings, error: settingsError } = useDoc<UserSettings>(settingsDocRef);
 
   useEffect(() => {
-    if (!settingsDocRef) return;
-  
-    const unsubscribe = onSnapshot(settingsDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as UserSettings;
-        setSettings({
-            sensitivity: data.sensitivity ?? 50,
-            replyTone: data.replyTone ?? 'neutral'
-        });
-      }
-      setIsLoadingSettings(false);
-    });
-
-    return () => unsubscribe();
-  }, [settingsDocRef]);
+    if (settingsData) {
+      setSettings({
+        sensitivity: settingsData.sensitivity ?? 50,
+        replyTone: settingsData.replyTone ?? 'neutral'
+      });
+    }
+  }, [settingsData]);
 
 
   useEffect(() => {
@@ -94,7 +89,7 @@ export default function AiSettingsPage() {
     setSettings(s => ({ ...s, replyTone: value as 'formal' | 'neutral' | 'casual' }));
   };
 
-  if (isUserLoading || !user || isLoadingSettings) {
+  if (isUserLoading || !user) {
      return (
        <div className="flex h-screen w-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -189,54 +184,80 @@ export default function AiSettingsPage() {
       <SidebarInset>
         <div className="p-4 md:p-8">
             <h1 className="text-3xl font-bold font-headline mb-8">AI Settings</h1>
-            <Card className="max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Fine-Tune Your AI Assistant</CardTitle>
-                    <CardDescription>Adjust the behavior of GuardianMail's AI to fit your preferences.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    <div className="space-y-4">
-                        <Label htmlFor="sensitivity" className="text-base font-semibold">Phishing Detection Sensitivity</Label>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-muted-foreground">Less Strict</span>
-                            <Slider
-                                id="sensitivity"
-                                value={[settings.sensitivity]}
-                                onValueChange={handleSensitivityChange}
-                                max={100}
-                                step={1}
-                                className="flex-1"
-                            />
-                            <span className="text-sm text-muted-foreground">More Strict</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Adjust how aggressively the AI flags potential phishing emails. Higher sensitivity means a lower threshold for flagging.
-                        </p>
-                    </div>
+             {isLoadingSettings && (
+                <Card className="max-w-2xl">
+                    <CardHeader>
+                        <Skeleton className="h-6 w-1/2" />
+                        <Skeleton className="h-4 w-3/4" />
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-24" />
+                    </CardContent>
+                </Card>
+            )}
 
-                     <div className="space-y-4">
-                        <Label className="text-base font-semibold">AI-Assisted Reply Tone</Label>
-                        <RadioGroup value={settings.replyTone} onValueChange={(val) => handleReplyToneChange(val as any)} className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="formal" id="formal" />
-                                <Label htmlFor="formal">Formal</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="neutral" id="neutral" />
-                                <Label htmlFor="neutral">Neutral</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="casual" id="casual" />
-                                <Label htmlFor="casual">Casual</Label>
-                            </div>
-                        </RadioGroup>
-                         <p className="text-xs text-muted-foreground">
-                            Choose the default tone for AI-generated email replies.
-                        </p>
-                    </div>
-                    <Button onClick={handleSaveChanges}>Save Changes</Button>
-                </CardContent>
-            </Card>
+            {settingsError && (
+                 <Alert variant="destructive" className="max-w-2xl">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Error Loading Settings</AlertTitle>
+                    <AlertDescription>
+                        Could not load your AI settings. This might be due to a network issue or missing permissions. Please try again later. If this is the first time you are using the app, try saving the settings first.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {!isLoadingSettings && !settingsError && (
+              <Card className="max-w-2xl">
+                  <CardHeader>
+                      <CardTitle>Fine-Tune Your AI Assistant</CardTitle>
+                      <CardDescription>Adjust the behavior of GuardianMail's AI to fit your preferences.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-8">
+                      <div className="space-y-4">
+                          <Label htmlFor="sensitivity" className="text-base font-semibold">Phishing Detection Sensitivity</Label>
+                          <div className="flex items-center gap-4">
+                              <span className="text-sm text-muted-foreground">Less Strict</span>
+                              <Slider
+                                  id="sensitivity"
+                                  value={[settings.sensitivity]}
+                                  onValueChange={handleSensitivityChange}
+                                  max={100}
+                                  step={1}
+                                  className="flex-1"
+                              />
+                              <span className="text-sm text-muted-foreground">More Strict</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                              Adjust how aggressively the AI flags potential phishing emails. Higher sensitivity means a lower threshold for flagging.
+                          </p>
+                      </div>
+
+                      <div className="space-y-4">
+                          <Label className="text-base font-semibold">AI-Assisted Reply Tone</Label>
+                          <RadioGroup value={settings.replyTone} onValueChange={(val) => handleReplyToneChange(val as any)} className="flex flex-col sm:flex-row gap-4">
+                              <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="formal" id="formal" />
+                                  <Label htmlFor="formal">Formal</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="neutral" id="neutral" />
+                                  <Label htmlFor="neutral">Neutral</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="casual" id="casual" />
+                                  <Label htmlFor="casual">Casual</Label>
+                              </div>
+                          </RadioGroup>
+                          <p className="text-xs text-muted-foreground">
+                              Choose the default tone for AI-generated email replies.
+                          </p>
+                      </div>
+                      <Button onClick={handleSaveChanges}>Save Changes</Button>
+                  </CardContent>
+              </Card>
+            )}
         </div>
       </SidebarInset>
     </SidebarProvider>

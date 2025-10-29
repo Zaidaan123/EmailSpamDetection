@@ -26,13 +26,13 @@ import { Separator } from '../ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Label } from '../ui/label';
 import { EmailAnalyticsChart } from './email-analytics-chart';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { useFirestore, useUser, useMemoFirebase, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 const emailSchema = z.object({
   emailSubject: z.string().min(1, 'Subject is required.'),
   senderDomain: z.string().min(1, 'Sender domain is required.'),
-  senderIp: z.string().ip({ message: 'Please enter a valid IP address.' }).optional(),
+  senderIp: z.string().ip({ message: 'Please enter a valid IP address.' }).optional().or(z.literal('')),
   emailBody: z.string().min(1, 'Email body is required.'),
   urlList: z.array(z.string().url()).optional(),
 });
@@ -50,8 +50,7 @@ export function GuardianMailDashboard() {
   const [urlState, setUrlState] = useState<UrlAnalysisState>({ status: 'idle', result: null, error: null });
   const [replyState, setReplyState] = useState<ReplyGenerationState>({ status: 'idle', result: null, error: null });
   const [briefingState, setBriefingState] = useState<SecurityBriefingState>({ status: 'idle', result: null, error: null });
-  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-
+  
   const { user } = useUser();
   const firestore = useFirestore();
 
@@ -60,15 +59,7 @@ export function GuardianMailDashboard() {
     return doc(firestore, 'users', user.uid, 'settings', 'ai');
   }, [firestore, user]);
 
-  useEffect(() => {
-    if (!settingsDocRef) return;
-    const unsubscribe = onSnapshot(settingsDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUserSettings(snapshot.data() as UserSettings);
-      }
-    });
-    return () => unsubscribe();
-  }, [settingsDocRef]);
+  const { data: userSettings } = useDoc<UserSettings>(settingsDocRef);
 
 
   const emailForm = useForm<z.infer<typeof emailSchema>>({
@@ -243,7 +234,7 @@ export function GuardianMailDashboard() {
                       )} />
                       <FormField control={emailForm.control} name="senderIp" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Sender IP</FormLabel>
+                          <FormLabel>Sender IP (Optional)</FormLabel>
                           <FormControl><Input placeholder="e.g., 123.45.67.89" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
