@@ -15,16 +15,17 @@ const DetectPhishingEmailInputSchema = z.object({
   emailBody: z.string().describe('The content of the email to analyze.'),
   senderDomain: z.string().describe('The domain of the sender email address.'),
   emailSubject: z.string().describe('The subject line of the email.'),
-  senderIp: z.string().describe('The IP address of the sender.'),
-  urlList: z.array(z.string()).describe('List of urls found in the email'),
+  senderIp: z.string().optional().describe('The IP address of the sender.'),
+  urlList: z.array(z.string()).optional().describe('List of urls found in the email'),
+  sensitivity: z.number().min(0).max(1).default(0.5).describe('The user-defined sensitivity for detection. 0.0 is less strict, 1.0 is more strict.'),
 });
 export type DetectPhishingEmailInput = z.infer<typeof DetectPhishingEmailInputSchema>;
 
 const DetectPhishingEmailOutputSchema = z.object({
-  isPhishing: z.boolean().describe('Whether or not the email is classified as phishing.'),
-  phishingScore: z.number().describe('A score indicating the likelihood of the email being a phishing attempt (0-1).'),
-  riskFactors: z.array(z.string()).describe('A list of factors contributing to the phishing risk.'),
-  safeReplySuggestion: z.string().describe('A suggestion for a safe and professional reply.'),
+  isPhishing: z.boolean().describe('Whether or not the email is classified as phishing based on the user\'s sensitivity level.'),
+  phishingScore: z.number().min(0).max(1).describe('A score from 0 (very safe) to 1 (very malicious) indicating the likelihood of the email being a phishing attempt.'),
+  riskFactors: z.array(z.string()).describe('A list of specific factors contributing to the phishing risk (e.g., "Suspicious URL", "Urgent Language").'),
+  justification: z.string().describe('A brief explanation of why the email was flagged (or not flagged) as phishing.'),
 });
 export type DetectPhishingEmailOutput = z.infer<typeof DetectPhishingEmailOutputSchema>;
 
@@ -36,29 +37,32 @@ const detectPhishingEmailPrompt = ai.definePrompt({
   name: 'detectPhishingEmailPrompt',
   input: {schema: DetectPhishingEmailInputSchema},
   output: {schema: DetectPhishingEmailOutputSchema},
-  prompt: `You are an expert in identifying phishing emails. Analyze the provided email content, sender information, and URLs to determine if it is a phishing attempt.
+  prompt: `You are an expert cybersecurity analyst specializing in advanced phishing detection. Analyze the provided email data to determine if it is a phishing attempt.
 
-Email Body: {{{emailBody}}}
-Sender Domain: {{{senderDomain}}}
-Email Subject: {{{emailSubject}}}
-Sender IP: {{{senderIp}}}
-URLs: {{#each urlList}}{{{this}}} {{/each}}
+Your analysis must be thorough. Evaluate the following factors and synthesize them into a final phishing score and a list of identified risk factors.
 
-Based on your analysis, provide the following:
+1.  **Sender Analysis:**
+    *   **Domain Legitimacy:** Is the sender domain ('{{{senderDomain}}}') known for phishing? Does it impersonate a legitimate brand (e.g., "g00gle.com" instead of "google.com")?
+    *   **IP Address Reputation:** (If provided: '{{{senderIp}}}') Is the sender IP associated with spam or malicious activity?
 
-*   isPhishing: true if the email is likely a phishing attempt, false otherwise.
-*   phishingScore: A score between 0 and 1 indicating the likelihood of the email being a phishing attempt.
-*   riskFactors: A list of factors that contribute to the phishing risk, such as suspicious URLs, sender domain, or email content.
-*   safeReplySuggestion: Suggest a safe and professional reply, avoiding any sensitive information or potentially harmful interactions.
+2.  **Content Analysis:**
+    *   **Urgency and Threats:** Does the email body ('{{{emailBody}}}') or subject ('{{{emailSubject}}}') create a sense of urgency, fear, or threaten negative consequences?
+    *   **Generic Salutations:** Does it use generic greetings like "Dear Valued Customer" instead of a personal name?
+    *   **Grammar and Spelling:** Are there noticeable grammatical errors or spelling mistakes?
+    *   **Suspicious Attachments:** Does it mention attachments that are unexpected or have dangerous file types?
 
-Consider the following when making your determination:
+3.  **URL and Link Analysis:**
+    *   **Link Obfuscation:** Are the URLs ('{{#each urlList}}{{{this}}} {{/each}}') hidden with URL shorteners (like bit.ly) or use misleading anchor text?
+    *   **Destination Mismatch:** Do the visible link texts match the actual destination URLs? (Analyze the raw HTML in the body).
+    *   **Non-Standard TLDs:** Do the URLs use unusual top-level domains?
 
-*   Suspicious URLs: Check for URL shorteners, unusual domains, or redirects.
-*   Sender Domain: Verify the legitimacy of the sender domain and check for any inconsistencies.
-*   Email Content: Analyze the email body for grammar errors, urgent requests, or suspicious links.
-*   Sender IP: Verify if the sender IP address is associated with any known malicious activity.
+**Scoring and Decision Logic:**
+*   Calculate a 'phishingScore' from 0.0 (definitively safe) to 1.0 (definitively malicious).
+*   Identify the top 2-4 most significant 'riskFactors' found during your analysis. If no risks are found, return an empty array.
+*   The final 'isPhishing' decision should be based on the user's sensitivity setting ('{{{sensitivity}}}'). An email is considered phishing if \`phishingScore > (1 - sensitivity)\`. For example, if sensitivity is 0.7, flag anything with a score over 0.3. If sensitivity is 0.5 (default), flag anything over 0.5.
+*   Provide a brief 'justification' for your final decision, summarizing the key evidence.
 
-Output in JSON format.
+Output ONLY the JSON object.
 `,
 });
 

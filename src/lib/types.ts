@@ -72,3 +72,8 @@ export type SentEmail = {
 };
 
 export type EmailForAnalysis = DetectPhishingEmailInput;
+
+export type UserSettings = {
+    sensitivity: number; // 0 to 100
+    replyTone: 'formal' | 'neutral' | 'casual';
+}

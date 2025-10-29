@@ -8,7 +8,7 @@ import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info,
 import { marked } from 'marked';
 
 import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction } from '@/app/actions';
-import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState } from '@/lib/types';
+import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState, UserSettings } from '@/lib/types';
 import { mockEmails } from '@/lib/mock-data';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 
@@ -26,11 +26,13 @@ import { Separator } from '../ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Label } from '../ui/label';
 import { EmailAnalyticsChart } from './email-analytics-chart';
+import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const emailSchema = z.object({
   emailSubject: z.string().min(1, 'Subject is required.'),
   senderDomain: z.string().min(1, 'Sender domain is required.'),
-  senderIp: z.string().ip({ message: 'Please enter a valid IP address.' }),
+  senderIp: z.string().ip({ message: 'Please enter a valid IP address.' }).optional(),
   emailBody: z.string().min(1, 'Email body is required.'),
   urlList: z.array(z.string().url()).optional(),
 });
@@ -48,6 +50,26 @@ export function GuardianMailDashboard() {
   const [urlState, setUrlState] = useState<UrlAnalysisState>({ status: 'idle', result: null, error: null });
   const [replyState, setReplyState] = useState<ReplyGenerationState>({ status: 'idle', result: null, error: null });
   const [briefingState, setBriefingState] = useState<SecurityBriefingState>({ status: 'idle', result: null, error: null });
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const settingsDocRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'settings', 'ai');
+  }, [firestore, user]);
+
+  useEffect(() => {
+    if (!settingsDocRef) return;
+    const unsubscribe = onSnapshot(settingsDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setUserSettings(snapshot.data() as UserSettings);
+      }
+    });
+    return () => unsubscribe();
+  }, [settingsDocRef]);
+
 
   const emailForm = useForm<z.infer<typeof emailSchema>>({
     resolver: zodResolver(emailSchema),
@@ -76,14 +98,17 @@ export function GuardianMailDashboard() {
   const handleEmailSubmit = useCallback(async (values: z.infer<typeof emailSchema>) => {
     setEmailState({ status: 'loading', result: null, error: null });
     setReplyState({ status: 'idle', result: null, error: null });
-    const { data, error } = await analyzeEmailAction(values);
+
+    const sensitivity = userSettings ? userSettings.sensitivity / 100 : 0.5;
+
+    const { data, error } = await analyzeEmailAction({ ...values, sensitivity });
     if (error) {
       setEmailState({ status: 'error', result: null, error });
       toast({ variant: 'destructive', title: 'Analysis Failed', description: error });
     } else {
       setEmailState({ status: 'success', result: data, error: null });
     }
-  }, [toast]);
+  }, [toast, userSettings]);
 
   useEffect(() => {
     if (analyzeEmailFromInbox) {
@@ -274,13 +299,20 @@ export function GuardianMailDashboard() {
                   <CardHeader>
                     <CardTitle className="font-headline">Analysis Result</CardTitle>
                     <CardDescription>
-                      {emailState.result.isPhishing
-                        ? 'This email shows strong indicators of a phishing attempt.'
-                        : 'This email appears to be safe.'}
+                      {emailState.result.justification}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <RiskScoreIndicator score={emailState.result.phishingScore} />
+                     {emailState.result.isPhishing && (
+                      <Alert variant="destructive">
+                        <AlertTriangle />
+                        <AlertTitle className="font-headline">Phishing Detected</AlertTitle>
+                        <AlertDescription>
+                          This email was flagged as a potential phishing attempt based on your sensitivity settings.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     {emailState.result.riskFactors.length > 0 && (
                       <div className="space-y-2 text-center">
                         <h3 className="font-semibold font-headline">Key Risk Factors</h3>

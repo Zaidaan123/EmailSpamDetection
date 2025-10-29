@@ -13,8 +13,8 @@ import {
 import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/firebase';
-import { useEffect, useState } from 'react';
+import { useAuth, useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -24,16 +24,43 @@ import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { UserSettings } from '@/lib/types';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function AiSettingsPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
-  // Mock state for AI settings
-  const [sensitivity, setSensitivity] = useState([50]);
-  const [replyTone, setReplyTone] = useState('neutral');
+  const [settings, setSettings] = useState<UserSettings>({ sensitivity: 50, replyTone: 'neutral' });
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+  const settingsDocRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'settings', 'ai');
+  }, [firestore, user]);
+
+
+  useEffect(() => {
+    if (!settingsDocRef) return;
+  
+    const unsubscribe = onSnapshot(settingsDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as UserSettings;
+        setSettings({
+            sensitivity: data.sensitivity ?? 50,
+            replyTone: data.replyTone ?? 'neutral'
+        });
+      }
+      setIsLoadingSettings(false);
+    });
+
+    return () => unsubscribe();
+  }, [settingsDocRef]);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -42,13 +69,32 @@ export default function AiSettingsPage() {
   }, [isUserLoading, user, router]);
 
   const handleSaveChanges = () => {
+     if (!settingsDocRef) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not save settings. User not authenticated.',
+      });
+      return;
+    }
+    
+    setDocumentNonBlocking(settingsDocRef, settings, { merge: true });
+
     toast({
         title: 'Settings Saved',
-        description: 'Your AI settings have been updated (simulation).',
-    })
+        description: 'Your AI settings have been updated.',
+    });
   }
 
-  if (isUserLoading || !user) {
+  const handleSensitivityChange = (value: number[]) => {
+    setSettings(s => ({ ...s, sensitivity: value[0] }));
+  };
+
+  const handleReplyToneChange = (value: 'formal' | 'neutral' | 'casual') => {
+    setSettings(s => ({ ...s, replyTone: value as 'formal' | 'neutral' | 'casual' }));
+  };
+
+  if (isUserLoading || !user || isLoadingSettings) {
      return (
        <div className="flex h-screen w-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
@@ -155,8 +201,8 @@ export default function AiSettingsPage() {
                             <span className="text-sm text-muted-foreground">Less Strict</span>
                             <Slider
                                 id="sensitivity"
-                                value={sensitivity}
-                                onValueChange={setSensitivity}
+                                value={[settings.sensitivity]}
+                                onValueChange={handleSensitivityChange}
                                 max={100}
                                 step={1}
                                 className="flex-1"
@@ -164,13 +210,13 @@ export default function AiSettingsPage() {
                             <span className="text-sm text-muted-foreground">More Strict</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Adjust how aggressively the AI flags potential phishing emails. Higher sensitivity may result in more false positives.
+                            Adjust how aggressively the AI flags potential phishing emails. Higher sensitivity means a lower threshold for flagging.
                         </p>
                     </div>
 
                      <div className="space-y-4">
                         <Label className="text-base font-semibold">AI-Assisted Reply Tone</Label>
-                        <RadioGroup value={replyTone} onValueChange={setReplyTone} className="flex flex-col sm:flex-row gap-4">
+                        <RadioGroup value={settings.replyTone} onValueChange={(val) => handleReplyToneChange(val as any)} className="flex flex-col sm:flex-row gap-4">
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="formal" id="formal" />
                                 <Label htmlFor="formal">Formal</Label>
