@@ -1,6 +1,7 @@
 import type { DetectPhishingEmailInput, DetectPhishingEmailOutput } from '@/ai/flows/phishing-email-detection';
 import type { UrlRiskAssessmentOutput } from '@/ai/flows/url-risk-assessment';
 import type { AiAssistedReplyOutput } from '@/ai/flows/ai-assisted-reply';
+import type { SummarizeEmailOutput } from '@/ai/flows/summarize-email';
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -20,6 +21,12 @@ export type ReplyGenerationState = {
   status: AnalysisStatus;
   result: AiAssistedReplyOutput | null;
   error: string | null;
+};
+
+export type SummarizationState = {
+    status: AnalysisStatus;
+    result: SummarizeEmailOutput | null;
+    error: string | null;
 };
 
 export type MockEmail = {

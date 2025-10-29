@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-import type { InboxEmail } from '@/lib/types';
+import type { InboxEmail, SummarizationState } from '@/lib/types';
 import { inboxEmails } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,13 +12,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Archive, Bot, Clock, Mail as MailIcon, Reply, Trash } from 'lucide-react';
+import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText } from 'lucide-react';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
+import { summarizeEmailAction } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
+
 
 export function Inbox() {
   const [selectedEmail, setSelectedEmail] = useState<InboxEmail | null>(inboxEmails[0]);
+  const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
+  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
+
   const { setAnalyzeEmailFromInbox } = useDashboardState();
   const router = useRouter();
+  const { toast } = useToast();
 
 
   const handleAnalyzeClick = () => {
@@ -46,7 +54,25 @@ export function Inbox() {
     }
   };
 
+  const handleSummarizeClick = async () => {
+    if (!selectedEmail) return;
+
+    setSummarizationState({ status: 'loading', result: null, error: null });
+    setIsSummaryDialogOpen(true);
+
+    const { data, error } = await summarizeEmailAction({ emailBody: selectedEmail.body });
+
+    if (error) {
+      setSummarizationState({ status: 'error', result: null, error });
+      toast({ variant: 'destructive', title: 'Summarization Failed', description: error });
+      // Don't close the dialog on error, show error message instead
+    } else {
+      setSummarizationState({ status: 'success', result: data, error: null });
+    }
+  }
+
   return (
+    <>
     <div className="h-full flex flex-col">
        <div className="p-4 border-b">
         <h1 className="text-3xl font-bold font-headline">Inbox</h1>
@@ -96,6 +122,7 @@ export function Inbox() {
             <>
               <div className="flex items-center p-4 border-b gap-2 flex-wrap">
                  <Button onClick={handleAnalyzeClick}><Bot /> Analyze with AI</Button>
+                 <Button onClick={handleSummarizeClick} variant="outline" disabled={summarizationState.status === 'loading'}><FileText /> Summarize</Button>
                 <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
                 <Button variant="ghost" size="icon"><Reply /><span className="sr-only">Reply</span></Button>
                 <Button variant="ghost" size="icon"><Archive /><span className="sr-only">Archive</span></Button>
@@ -140,5 +167,39 @@ export function Inbox() {
         </div>
       </div>
     </div>
+    <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FileText /> Email Summary
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              AI-generated summary of the selected email.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto p-1">
+            {summarizationState.status === 'loading' && (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="animate-spin text-primary" size={32} />
+              </div>
+            )}
+            {summarizationState.status === 'error' && (
+              <p className="text-destructive">{summarizationState.error}</p>
+            )}
+            {summarizationState.status === 'success' && summarizationState.result && (
+              <div
+                className="prose prose-sm dark:prose-invert"
+                dangerouslySetInnerHTML={{
+                  __html: summarizationState.result.summary.replace(/•/g, '<li>'),
+                }}
+              />
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
