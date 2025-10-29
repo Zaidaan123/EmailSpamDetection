@@ -133,7 +133,9 @@ export default function Home() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <GuardianMailDashboard />
+        <div className="h-screen overflow-auto">
+          <GuardianMailDashboard />
+        </div>
       </SidebarInset>
       <ComposeDialog open={isComposeOpen} onOpenChange={setIsComposeOpen} onEmailSent={handleEmailSent} />
     </SidebarProvider>

@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info } from 'lucide-react';
+import { marked } from 'marked';
 
-import { analyzeEmailAction, analyzeUrlAction, generateReplyAction } from '@/app/actions';
-import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState } from '@/lib/types';
+import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction } from '@/app/actions';
+import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState } from '@/lib/types';
 import { mockEmails } from '@/lib/mock-data';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 
@@ -45,6 +46,7 @@ export function GuardianMailDashboard() {
   const [emailState, setEmailState] = useState<EmailAnalysisState>({ status: 'idle', result: null, error: null });
   const [urlState, setUrlState] = useState<UrlAnalysisState>({ status: 'idle', result: null, error: null });
   const [replyState, setReplyState] = useState<ReplyGenerationState>({ status: 'idle', result: null, error: null });
+  const [briefingState, setBriefingState] = useState<SecurityBriefingState>({ status: 'idle', result: null, error: null });
 
   const emailForm = useForm<z.infer<typeof emailSchema>>({
     resolver: zodResolver(emailSchema),
@@ -55,6 +57,20 @@ export function GuardianMailDashboard() {
     resolver: zodResolver(urlSchema),
     defaultValues: { url: '' },
   });
+
+  useEffect(() => {
+    const fetchBriefing = async () => {
+      setBriefingState({ status: 'loading', result: null, error: null });
+      const { data, error } = await generateSecurityBriefingAction({});
+      if (error) {
+        setBriefingState({ status: 'error', result: null, error });
+        toast({ variant: 'destructive', title: 'Briefing Failed', description: error });
+      } else {
+        setBriefingState({ status: 'success', result: data, error: null });
+      }
+    };
+    fetchBriefing();
+  }, [toast]);
 
   const handleEmailSubmit = useCallback(async (values: z.infer<typeof emailSchema>) => {
     setEmailState({ status: 'loading', result: null, error: null });
@@ -128,13 +144,37 @@ export function GuardianMailDashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-4 md:p-8">
       <div>
         <h1 className="text-3xl font-bold font-headline">Analysis Dashboard</h1>
         <p className="text-muted-foreground">
           Leverage our Transformer-driven NLP framework to identify phishing attempts with high precision.
         </p>
       </div>
+
+       <Card className="animate-in fade-in-0 duration-500">
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center gap-2"><Info /> Proactive Security Briefing</CardTitle>
+          <CardDescription>Your daily summary of emerging email security threats.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {briefingState.status === 'loading' && (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          )}
+          {briefingState.status === 'error' && <p className="text-destructive">{briefingState.error}</p>}
+          {briefingState.status === 'success' && briefingState.result && (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: marked(briefingState.result.briefing) }}
+            />
+          )}
+        </CardContent>
+      </Card>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="email">Email Analysis</TabsTrigger>
@@ -345,4 +385,3 @@ export function GuardianMailDashboard() {
     </div>
   );
 }
-    
