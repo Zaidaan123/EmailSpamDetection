@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,8 +8,8 @@ import * as z from 'zod';
 import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2, Info, BarChart } from 'lucide-react';
 import { marked } from 'marked';
 
-import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction } from '@/app/actions';
-import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState, UserSettings } from '@/lib/types';
+import { analyzeEmailAction, analyzeUrlAction, generateReplyAction, generateSecurityBriefingAction, summarizeEmailAction } from '@/app/actions';
+import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState, SecurityBriefingState, UserSettings, SummarizationState } from '@/lib/types';
 import { mockEmails } from '@/lib/mock-data';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 
@@ -44,12 +45,13 @@ const urlSchema = z.object({
 export function GuardianMailDashboard() {
   const { toast } = useToast();
   const { analyzeEmailFromInbox, clearAnalyzeEmailFromInbox } = useDashboardState();
-  const [activeTab, setActiveTab] = useState(analyzeEmailFromInbox ? 'email' : 'url');
+  const [activeTab, setActiveTab] = useState(analyzeEmailFromInbox ? 'email' : 'analytics');
 
   const [emailState, setEmailState] = useState<EmailAnalysisState>({ status: 'idle', result: null, error: null });
   const [urlState, setUrlState] = useState<UrlAnalysisState>({ status: 'idle', result: null, error: null });
   const [replyState, setReplyState] = useState<ReplyGenerationState>({ status: 'idle', result: null, error: null });
   const [briefingState, setBriefingState] = useState<SecurityBriefingState>({ status: 'idle', result: null, error: null });
+  const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
   
   const { user } = useUser();
   const firestore = useFirestore();
@@ -142,6 +144,20 @@ export function GuardianMailDashboard() {
     }
   };
 
+  const handleSummarize = async () => {
+    const emailContent = emailForm.getValues('emailBody');
+    if (!emailContent) return;
+
+    setSummarizationState({ status: 'loading', result: null, error: null });
+    const { data, error } = await summarizeEmailAction({ emailBody: emailContent });
+    if (error) {
+      setSummarizationState({ status: 'error', result: null, error });
+      toast({ variant: 'destructive', title: 'Summarization Failed', description: error });
+    } else {
+      setSummarizationState({ status: 'success', result: data, error: null });
+    }
+  };
+
   const loadMockEmail = (index: number) => {
     const email = mockEmails[index];
     emailForm.reset({
@@ -153,6 +169,7 @@ export function GuardianMailDashboard() {
     });
     setEmailState({ status: 'idle', result: null, error: null });
     setReplyState({ status: 'idle', result: null, error: null });
+    setSummarizationState({ status: 'idle', result: null, error: null });
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -169,44 +186,48 @@ export function GuardianMailDashboard() {
         </p>
       </div>
 
-       <Card className="animate-in fade-in-0 duration-500">
-          <CardHeader>
-            <CardTitle className="font-headline flex items-center gap-2"><BarChart /> Security Analytics</CardTitle>
-            <CardDescription>Your email security overview for the last 7 days.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmailAnalyticsChart />
-          </CardContent>
-        </Card>
-
-       <Card className="animate-in fade-in-0 duration-500">
-        <CardHeader>
-          <CardTitle className="font-headline flex items-center gap-2"><Info /> Proactive Security Briefing</CardTitle>
-          <CardDescription>Your daily summary of emerging email security threats.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {briefingState.status === 'loading' && (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          )}
-          {briefingState.status === 'error' && <p className="text-destructive">{briefingState.error}</p>}
-          {briefingState.status === 'success' && briefingState.result && (
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: marked(briefingState.result.briefing) }}
-            />
-          )}
-        </CardContent>
-      </Card>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="email">Email Analysis</TabsTrigger>
           <TabsTrigger value="url">URL Analysis</TabsTrigger>
         </TabsList>
+        <TabsContent value="analytics" className="mt-4">
+            <div className="grid grid-cols-1 gap-8">
+                <Card className="animate-in fade-in-0 duration-500">
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2"><BarChart /> Security Analytics</CardTitle>
+                        <CardDescription>Your email security overview for the last 7 days.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <EmailAnalyticsChart />
+                    </CardContent>
+                </Card>
+
+                <Card className="animate-in fade-in-0 duration-500">
+                    <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Info /> Proactive Security Briefing</CardTitle>
+                    <CardDescription>Your daily summary of emerging email security threats.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    {briefingState.status === 'loading' && (
+                        <div className="space-y-2">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        </div>
+                    )}
+                    {briefingState.status === 'error' && <p className="text-destructive">{briefingState.error}</p>}
+                    {briefingState.status === 'success' && briefingState.result && (
+                        <div
+                        className="prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: marked(briefingState.result.briefing) }}
+                        />
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
+        </TabsContent>
         <TabsContent value="email">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
             <Card>
@@ -235,7 +256,7 @@ export function GuardianMailDashboard() {
                       <FormField control={emailForm.control} name="senderIp" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Sender IP (Optional)</FormLabel>
-                          <FormControl><Input placeholder="e.g., 123.45.67.89" {...field} /></FormControl>
+                          <FormControl><Input placeholder="e.g., 209.85.220.41" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -266,6 +287,13 @@ export function GuardianMailDashboard() {
             </Card>
 
             <div className="space-y-8">
+              {emailState.status === 'idle' && summarizationState.status === 'idle' && (
+                <Card className="flex flex-col items-center justify-center text-center p-8 h-full">
+                    <Bot className="size-16 text-muted-foreground/50" />
+                    <h3 className="mt-4 text-lg font-semibold">AI Analysis</h3>
+                    <p className="text-sm text-muted-foreground">Your email analysis results will appear here.</p>
+                </Card>
+              )}
               {emailState.status === 'loading' && (
                 <Card>
                   <CardHeader>
@@ -315,12 +343,37 @@ export function GuardianMailDashboard() {
                       </div>
                     )}
                   </CardContent>
+                   <CardFooter>
+                       <Button variant="outline" onClick={handleSummarize} disabled={summarizationState.status === 'loading'} className="w-full">
+                            {summarizationState.status === 'loading' ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                            Summarize Email
+                        </Button>
+                   </CardFooter>
                 </Card>
+              )}
+              {summarizationState.status !== 'idle' && (
+                 <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2"><Sparkles className="text-accent"/>AI-Generated Summary</CardTitle>
+                        <CardDescription>A concise summary of the email content.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         {summarizationState.status === 'loading' && (
+                             <div className="space-y-2">
+                                <Skeleton className="h-5 w-1/3"/>
+                                <Skeleton className="h-20 w-full"/>
+                             </div>
+                        )}
+                         {summarizationState.status === 'success' && summarizationState.result && (
+                             <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: marked(summarizationState.result.summary) }}/>
+                        )}
+                    </CardContent>
+                 </Card>
               )}
                {emailState.status === 'success' && emailState.result && (
                 <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
                     <CardHeader>
-                        <CardTitle className="font-headline flex items-center gap-2"><Sparkles className="text-accent"/>AI-Assisted Reply</CardTitle>
+                        <CardTitle className="font-headline flex items-center gap-2"><Wand2 className="text-accent"/>AI-Assisted Reply</CardTitle>
                         <CardDescription>Generate a safe, professional reply suggestion.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -419,3 +472,5 @@ export function GuardianMailDashboard() {
     </div>
   );
 }
+
+    

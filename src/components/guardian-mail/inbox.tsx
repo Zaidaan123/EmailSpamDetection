@@ -60,18 +60,24 @@ export function Inbox() {
         const results = await Promise.all(riskPromises);
 
         results.forEach(({ href, data, error }) => {
-          const link = doc.querySelector(`a[href="${href}"]`);
-          if (link) {
+          const linkElements = doc.querySelectorAll(`a[href="${href}"]`);
+          linkElements.forEach(link => {
+            if (link.parentElement?.dataset.inboxLinkWrapper) {
+              return; // Already wrapped
+            }
             const wrapper = doc.createElement('span');
             wrapper.className = 'inline-flex items-center gap-1';
+            wrapper.dataset.inboxLinkWrapper = 'true';
             
             const icon = doc.createElement('span');
             icon.dataset.risk = error ? 'unknown' : (data?.riskScore ?? 0) > 0.7 ? 'high' : (data?.riskScore ?? 0) > 0.4 ? 'medium' : 'low';
+            icon.dataset.tooltip = error ? 'Could not analyze this link.' : data?.justification || 'No justification provided.';
             
             link.parentNode?.insertBefore(wrapper, link);
-            wrapper.appendChild(link);
+            wrapper.appendChild(link.cloneNode(true)); // Use clone to avoid moving the same node if URL appears multiple times
             wrapper.appendChild(icon);
-          }
+            link.remove();
+          });
         });
 
         setProcessedEmailBody(doc.body.innerHTML);
@@ -93,7 +99,7 @@ export function Inbox() {
       const emailDataForAnalysis = {
         emailSubject: activeEmail.subject,
         senderDomain: activeEmail.from.email.split('@')[1] || 'unknown.com',
-        senderIp: '127.0.0.1', 
+        senderIp: '209.85.220.41', 
         emailBody: activeEmail.body,
         urlList: urls,
       };
@@ -154,127 +160,84 @@ export function Inbox() {
     setSelectedEmailIds(new Set());
     toast({ title: `${selectedEmailIds.size} conversation(s) moved to the bin.`});
   };
-
+  
   const renderProcessedBody = () => {
     if (!processedEmailBody) {
       return (
-         <div className="prose prose-sm dark:prose-invert max-w-none">
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-3/4 mb-2" />
+         <div className="prose prose-sm dark:prose-invert max-w-none space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-5/6" />
          </div>
       );
     }
   
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(processedEmailBody, 'text/html');
-    const elements = Array.from(doc.body.childNodes);
-  
-    const toReactNode = (node: ChildNode, index: number): React.ReactNode => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node.textContent;
-      }
-  
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as HTMLElement;
-        const children = Array.from(el.childNodes).map(toReactNode);
+    const createMarkup = () => {
+        return { __html: processedEmailBody };
+    }
+
+    const BodyWithTooltips = () => {
+        const bodyRef = React.useRef<HTMLDivElement>(null);
         
-        if (el.tagName.toLowerCase() === 'span' && el.dataset.risk) {
-            const risk = el.dataset.risk;
-            let Icon = Shield;
-            let color = "text-gray-400";
-            let tooltipText = "Risk Unknown";
-
-            if (risk === 'low') {
-                Icon = ShieldCheck;
-                color = "text-green-500";
-                tooltipText = "This link is likely safe.";
-            } else if (risk === 'medium') {
-                Icon = ShieldAlert;
-                color = "text-yellow-500";
-                tooltipText = "This link is potentially suspicious. Proceed with caution.";
-            } else if (risk === 'high') {
-                Icon = ShieldAlert;
-                color = "text-red-500";
-                tooltipText = "This link is considered high-risk. Do not click.";
-            }
-
-            return (
-                <TooltipProvider key={index}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className="inline-flex items-center gap-1">
-                                {children}
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                           <div className="flex items-center gap-2">
-                                <Icon className={cn("size-4", color)} />
-                                <p>{tooltipText}</p>
-                           </div>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            )
-        }
-
-        if (el.tagName.toLowerCase() === 'a') {
-            const riskIconSpan = el.nextElementSibling;
-            if (riskIconSpan && riskIconSpan.tagName.toLowerCase() === 'span' && riskIconSpan.dataset.risk) {
-                // This link is already wrapped, return its content
-                return React.createElement(el.tagName.toLowerCase(), { href: el.getAttribute('href'), target: "_blank", rel: "noopener noreferrer", key: index }, children);
-            }
-        }
+        React.useEffect(() => {
+            if (bodyRef.current) {
+                const icons = bodyRef.current.querySelectorAll('span[data-risk]');
+                icons.forEach(iconEl => {
+                    const icon = iconEl as HTMLElement;
+                    const risk = icon.dataset.risk;
+                    const tooltipText = icon.dataset.tooltip || 'No details available.';
+                    
+                    let IconComponent: React.ElementType = Shield;
+                    let colorClass = "text-gray-400";
         
-        if(el.tagName.toLowerCase() === 'span' && el.querySelector('a')) {
-             const anchor = el.querySelector('a')!;
-             const iconSpan = el.querySelector('span[data-risk]') as HTMLElement;
-             const risk = iconSpan?.dataset.risk;
+                    if (risk === 'low') {
+                        IconComponent = ShieldCheck;
+                        colorClass = "text-green-500";
+                    } else if (risk === 'medium') {
+                        IconComponent = ShieldAlert;
+                        colorClass = "text-yellow-500";
+                    } else if (risk === 'high') {
+                        IconComponent = ShieldAlert;
+                        colorClass = "text-red-500";
+                    }
+                    
+                    const tooltipContent = (
+                        <div className="flex items-center gap-2">
+                            <IconComponent className={cn("size-4", colorClass)} />
+                            <p>{tooltipText}</p>
+                        </div>
+                    );
 
-             let Icon = Shield;
-             let color = "text-gray-400";
-             let tooltipText = "Risk Unknown";
- 
-             if (risk === 'low') {
-                 Icon = ShieldCheck;
-                 color = "text-green-500";
-                 tooltipText = "This link is likely safe.";
-             } else if (risk === 'medium') {
-                 Icon = ShieldAlert;
-                 color = "text-yellow-500";
-                 tooltipText = "This link is potentially suspicious. Proceed with caution.";
-             } else if (risk === 'high') {
-                 Icon = ShieldAlert;
-                 color = "text-red-500";
-                 tooltipText = "This link is considered high-risk. Do not click.";
-             }
+                    const trigger = (
+                        <IconComponent className={cn("size-4 shrink-0 cursor-pointer", colorClass)} />
+                    );
+                    
+                    const root = (
+                      <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  {trigger}
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  {tooltipContent}
+                              </TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
+                    );
+                    
+                    const tempDiv = document.createElement('div');
+                    const reactRoot = require('react-dom/client').createRoot(tempDiv);
+                    reactRoot.render(root);
+                    icon.innerHTML = '';
+                    icon.appendChild(tempDiv);
+                });
+            }
+        }, [processedEmailBody]);
 
-             return (
-                <span className="inline-flex items-center gap-1" key={index}>
-                    <a href={anchor.href} target="_blank" rel="noopener noreferrer">{anchor.innerText}</a>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <Icon className={cn("size-4 shrink-0", color)} />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <div className="flex items-center gap-2">
-                                    <Icon className={cn("size-4", color)} />
-                                    <p>{tooltipText}</p>
-                                </div>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </span>
-             );
-        }
+        return <div ref={bodyRef} className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={createMarkup()} />
+    }
 
-        return React.createElement(el.tagName.toLowerCase(), { key: index }, children);
-      }
-      return null;
-    };
-  
-    return <div className="prose prose-sm dark:prose-invert max-w-none">{elements.map(toReactNode)}</div>;
+    return <BodyWithTooltips />;
   };
 
   return (
@@ -441,3 +404,5 @@ export function Inbox() {
       </>
     );
 }
+
+    
