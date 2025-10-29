@@ -21,21 +21,26 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
 import type { SentEmail } from '@/lib/types';
-import { sentEmails as initialSentEmails } from '@/lib/mock-data';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useEmailState } from '@/hooks/use-email-state';
 
 export default function SentPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [sentEmails, setSentEmails] = useState<SentEmail[]>(initialSentEmails);
+  const { sentEmails, setSentEmails } = useEmailState();
   const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(sentEmails[0] || null);
 
+  useEffect(() => {
+    if (!selectedEmail && sentEmails.length > 0) {
+      setSelectedEmail(sentEmails[0]);
+    }
+  }, [sentEmails, selectedEmail]);
 
   const handleEmailSent = (email: SentEmail) => {
     const updatedSentEmails = [email, ...sentEmails];
@@ -96,6 +101,14 @@ export default function SentPage() {
                 <Send />
                 <span className="font-headline">Sent</span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/bin">
+                <SidebarMenuButton tooltip="Bin">
+                  <Trash2 />
+                  <span className="font-headline">Bin</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/spam">

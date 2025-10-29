@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { DashboardStateProvider } from '@/hooks/use-dashboard-state';
 import { ThemeProvider } from '@/components/theme-provider';
+import { EmailProvider } from '@/hooks/use-email-state';
 
 export const metadata: Metadata = {
   title: 'GuardianMail - AI-Powered Phishing Detection',
@@ -33,7 +34,9 @@ export default function RootLayout({
         >
           <FirebaseClientProvider>
             <DashboardStateProvider>
-              {children}
+              <EmailProvider>
+                {children}
+              </EmailProvider>
             </DashboardStateProvider>
           </FirebaseClientProvider>
           <Toaster />

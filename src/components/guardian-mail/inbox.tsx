@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 import type { InboxEmail, SummarizationState } from '@/lib/types';
-import { inboxEmails as initialEmails } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,11 +21,12 @@ import { summarizeEmailAction, analyzeUrlAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEmailState } from '@/hooks/use-email-state';
 
 export function Inbox() {
-  const [emails, setEmails] = useState<InboxEmail[]>(initialEmails);
+  const { inboxEmails, setInboxEmails } = useEmailState();
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
-  const [activeEmailId, setActiveEmailId] = useState<string | null>(initialEmails.find(e => e.status === 'inbox')?.id || null);
+  const [activeEmailId, setActiveEmailId] = useState<string | null>(inboxEmails.find(e => e.status === 'inbox')?.id || null);
 
   const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
@@ -36,8 +36,8 @@ export function Inbox() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const activeEmail = useMemo(() => emails.find(email => email.id === activeEmailId), [emails, activeEmailId]);
-  const inboxViewEmails = useMemo(() => emails.filter(e => e.status === 'inbox'), [emails]);
+  const activeEmail = useMemo(() => inboxEmails.find(email => email.id === activeEmailId), [inboxEmails, activeEmailId]);
+  const inboxViewEmails = useMemo(() => inboxEmails.filter(e => e.status === 'inbox'), [inboxEmails]);
 
   useEffect(() => {
     if (activeEmail) {
@@ -140,16 +140,16 @@ export function Inbox() {
 
   const toggleStarred = (e: React.MouseEvent, emailId: string) => {
     e.stopPropagation();
-    setEmails(emails.map(email => 
+    setInboxEmails(emails => emails.map(email => 
       email.id === emailId ? { ...email, starred: !email.starred } : email
     ));
   };
   
   const moveSelectedToTrash = () => {
-    setEmails(emails.map(email => 
+    setInboxEmails(emails => emails.map(email => 
       selectedEmailIds.has(email.id) ? { ...email, status: 'trash' } : email
     ));
-    const newActiveEmail = emails.find(e => e.status === 'inbox' && !selectedEmailIds.has(e.id));
+    const newActiveEmail = inboxEmails.find(e => e.status === 'inbox' && !selectedEmailIds.has(e.id));
     setActiveEmailId(newActiveEmail?.id || null);
     setSelectedEmailIds(new Set());
     toast({ title: `${selectedEmailIds.size} conversation(s) moved to the bin.`});

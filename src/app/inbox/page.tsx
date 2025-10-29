@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
 import type { SentEmail } from '@/lib/types';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useEmailState } from '@/hooks/use-email-state';
 
 
 export default function InboxPage() {
@@ -32,11 +33,10 @@ export default function InboxPage() {
   const router = useRouter();
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   
-  // This state would ideally be managed globally (e.g., in a context or state manager)
-  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+  const { setSentEmails } = useEmailState();
 
   const handleEmailSent = (email: SentEmail) => {
-    setSentEmails(prev => [...prev, email]);
+    setSentEmails(prev => [email, ...prev]);
   };
 
 

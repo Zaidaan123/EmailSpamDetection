@@ -18,25 +18,22 @@ import { useAuth, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { inboxEmails } from '@/lib/mock-data';
-import { InboxEmail } from '@/lib/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+import { useEmailState } from '@/hooks/use-email-state';
 
 export default function BinPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { inboxEmails, setInboxEmails } = useEmailState();
 
-  const [emails, setEmails] = useState<InboxEmail[]>(inboxEmails);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
 
-  const trashedEmails = emails.filter(e => e.status === 'trash');
+  const trashedEmails = inboxEmails.filter(e => e.status === 'trash');
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -65,7 +62,7 @@ export default function BinPage() {
   };
 
   const recoverSelectedEmails = () => {
-    setEmails(emails.map(email => 
+    setInboxEmails(emails => emails.map(email => 
       selectedEmailIds.has(email.id) ? { ...email, status: 'inbox' } : email
     ));
     toast({ title: `${selectedEmailIds.size} conversation(s) moved to inbox.` });
@@ -73,7 +70,7 @@ export default function BinPage() {
   };
 
   const deletePermanently = () => {
-    setEmails(emails.filter(email => !selectedEmailIds.has(email.id)));
+    setInboxEmails(emails => emails.filter(email => !selectedEmailIds.has(email.id)));
     toast({ variant: 'destructive', title: `${selectedEmailIds.size} conversation(s) permanently deleted.` });
     setSelectedEmailIds(new Set());
   };
