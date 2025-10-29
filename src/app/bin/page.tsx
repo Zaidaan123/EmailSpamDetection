@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useEmailState } from '@/hooks/use-email-state';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function BinPage() {
   const { user, isUserLoading } = useUser();
