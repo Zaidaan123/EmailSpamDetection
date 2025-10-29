@@ -9,12 +9,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@/components/ui/sidebar';
-import { GuardianMailDashboard } from '@/components/guardian-mail/dashboard';
+import { Inbox } from '@/components/guardian-mail/inbox';
 import { Logo } from '@/components/guardian-mail/logo';
 import { Bot, LayoutDashboard, Mail, Settings, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function Home() {
+export default function InboxPage() {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -24,30 +24,34 @@ export default function Home() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Dashboard" isActive>
-                <LayoutDashboard />
-                <span className="font-headline">Dashboard</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/inbox">
-                <SidebarMenuButton tooltip="Inbox">
-                  <Mail />
-                  <span className="font-headline">Inbox</span>
+              <Link href="/">
+                <SidebarMenuButton tooltip="Dashboard">
+                  <LayoutDashboard />
+                  <span className="font-headline">Dashboard</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="AI Settings">
-                <Bot />
-                <span className="font-headline">AI Settings</span>
+              <SidebarMenuButton tooltip="Inbox" isActive>
+                <Mail />
+                <span className="font-headline">Inbox</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Settings">
-                <Settings />
-                <span className="font-headline">Settings</span>
-              </SidebarMenuButton>
+              <Link href="/">
+                <SidebarMenuButton tooltip="AI Settings">
+                  <Bot />
+                  <span className="font-headline">AI Settings</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/">
+                <SidebarMenuButton tooltip="Settings">
+                  <Settings />
+                  <span className="font-headline">Settings</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
@@ -63,7 +67,7 @@ export default function Home() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <GuardianMailDashboard />
+        <Inbox />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -30,3 +30,18 @@ export type MockEmail = {
   label: string;
   urlList: string[];
 };
+
+export type InboxEmail = {
+    id: string;
+    from: {
+      name: string;
+      email: string;
+      avatar: string;
+    };
+    subject: string;
+    snippet: string;
+    body: string;
+    date: string;
+    unread: boolean;
+    tags: string[];
+};
