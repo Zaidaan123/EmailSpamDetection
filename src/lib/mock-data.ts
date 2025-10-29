@@ -27,7 +27,7 @@ Your Bank Security Team
     label: 'Safe Email Example',
     subject: 'Weekly Project Update',
     senderDomain: 'your-company.com',
-    senderIp: '209.85.220.41', // Changed from a reserved IP to a more realistic one
+    senderIp: '209.85.220.41',
     urlList: ['https://your-company.com/docs/project-alpha'],
     body: `
 Hi Team,
@@ -56,6 +56,8 @@ export const inboxEmails: InboxEmail[] = [
       body: '<p>Hi team,</p><p>Let\'s discuss the new project features. I have some ideas I\'d like to share. You can check the details <a href="https://example.com/project-details">here</a>.</p><p>Best,</p><p>Alice</p>',
       date: '2024-05-20T10:00:00Z',
       unread: true,
+      starred: false,
+      status: 'inbox',
       tags: ['work', 'project'],
     },
     {
@@ -66,6 +68,8 @@ export const inboxEmails: InboxEmail[] = [
       body: '<p>Hey,</p><p>Are you free for lunch today at 1 PM? I know a great new place. Check it out: <a href="https://example-restaurant.com">The Food Place</a></p><p>Cheers,</p><p>Bob</p>',
       date: '2024-05-20T09:30:00Z',
       unread: true,
+      starred: true,
+      status: 'inbox',
       tags: ['social'],
     },
     {
@@ -76,6 +80,8 @@ export const inboxEmails: InboxEmail[] = [
       body: '<p>Hello!</p><p>We\'ve just released some amazing new features you\'ll love. <a href="http://bit.ly/coolapp-features">Check them out now!</a></p>',
       date: '2024-05-19T15:00:00Z',
       unread: false,
+      starred: false,
+      status: 'inbox',
       tags: ['promotions'],
     },
     {
@@ -86,6 +92,8 @@ export const inboxEmails: InboxEmail[] = [
         body: '<p>Hi,</p><p>Thanks for your submission, we will review it shortly.</p><p>Regards,</p><p>Charlie</p>',
         date: '2024-05-18T12:00:00Z',
         unread: false,
+        starred: false,
+        status: 'inbox',
         tags: [],
     },
     {
@@ -96,7 +104,21 @@ export const inboxEmails: InboxEmail[] = [
         body: '<p>Hey,</p><p>Any plans for this weekend? I was thinking of going for a hike. Let me know if you are interested!</p><p>Best,</p><p>Diana</p>',
         date: '2024-05-17T18:00:00Z',
         unread: false,
+        starred: true,
+        status: 'inbox',
         tags: ['social'],
+    },
+    {
+      id: '6',
+      from: { name: 'Security Alert', email: 'security@yourbank.com', avatar: 'https://i.pravatar.cc/150?u=bank' },
+      subject: 'Suspicious login attempt',
+      snippet: 'We detected a suspicious login to your account.',
+      body: '<p>We detected a login from an unrecognized device. If this was not you, please secure your account immediately. Visit <a href="http://yourbank-real.com/security">our security page</a> to learn more.</p>',
+      date: '2024-05-21T11:00:00Z',
+      unread: true,
+      starred: false,
+      status: 'trash',
+      tags: ['security', 'alert'],
     }
 ];
 
@@ -109,5 +131,3 @@ export const sentEmails: SentEmail[] = [
       date: '2024-05-20T11:00:00Z',
     },
 ];
-
-    

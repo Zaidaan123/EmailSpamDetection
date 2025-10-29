@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Inbox } from '@/components/guardian-mail/inbox';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil, Trash2, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
@@ -91,6 +91,14 @@ export default function InboxPage() {
                 <SidebarMenuButton tooltip="Sent">
                   <Send />
                   <span className="font-headline">Sent</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/bin">
+                <SidebarMenuButton tooltip="Bin">
+                  <Trash2 />
+                  <span className="font-headline">Bin</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

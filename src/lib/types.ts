@@ -57,6 +57,8 @@ export type InboxEmail = {
     body: string;
     date: string;
     unread: boolean;
+    starred: boolean;
+    status: 'inbox' | 'trash';
     tags: string[];
 };
 

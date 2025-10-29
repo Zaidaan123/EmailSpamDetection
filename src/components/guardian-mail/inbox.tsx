@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import * as React from 'react';
 
 import type { InboxEmail, SummarizationState } from '@/lib/types';
-import { inboxEmails } from '@/lib/mock-data';
+import { inboxEmails as initialEmails } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -15,16 +15,19 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText, Shield, ShieldCheck, ShieldAlert, Star } from 'lucide-react';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
 import { summarizeEmailAction, analyzeUrlAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-
 export function Inbox() {
-  const [selectedEmail, setSelectedEmail] = useState<InboxEmail | null>(inboxEmails[0]);
+  const [emails, setEmails] = useState<InboxEmail[]>(initialEmails);
+  const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
+  const [activeEmailId, setActiveEmailId] = useState<string | null>(initialEmails.find(e => e.status === 'inbox')?.id || null);
+
   const [summarizationState, setSummarizationState] = useState<SummarizationState>({ status: 'idle', result: null, error: null });
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
   const [processedEmailBody, setProcessedEmailBody] = useState<string | null>(null);
@@ -33,16 +36,19 @@ export function Inbox() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const activeEmail = useMemo(() => emails.find(email => email.id === activeEmailId), [emails, activeEmailId]);
+  const inboxViewEmails = useMemo(() => emails.filter(e => e.status === 'inbox'), [emails]);
+
   useEffect(() => {
-    if (selectedEmail) {
+    if (activeEmail) {
       setProcessedEmailBody(null); // Reset while processing
       const processEmailBody = async () => {
         const parser = new DOMParser();
-        const doc = parser.parseFromString(selectedEmail.body, 'text/html');
+        const doc = parser.parseFromString(activeEmail.body, 'text/html');
         const links = Array.from(doc.querySelectorAll('a'));
         
         if (links.length === 0) {
-          setProcessedEmailBody(selectedEmail.body);
+          setProcessedEmailBody(activeEmail.body);
           return;
         }
 
@@ -73,25 +79,22 @@ export function Inbox() {
 
       processEmailBody();
     }
-  }, [selectedEmail]);
+  }, [activeEmail]);
 
   const handleAnalyzeClick = () => {
-    if (selectedEmail) {
-      // Basic regex to find URLs in the HTML body
+    if (activeEmail) {
       const urlRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g;
       const urls = [];
       let match;
-      while ((match = urlRegex.exec(selectedEmail.body)) !== null) {
+      while ((match = urlRegex.exec(activeEmail.body)) !== null) {
         urls.push(match[2]);
       }
       
       const emailDataForAnalysis = {
-        emailSubject: selectedEmail.subject,
-        // Extract domain from email
-        senderDomain: selectedEmail.from.email.split('@')[1] || 'unknown.com',
-        // Using a placeholder IP as it's not available in mock data
+        emailSubject: activeEmail.subject,
+        senderDomain: activeEmail.from.email.split('@')[1] || 'unknown.com',
         senderIp: '127.0.0.1', 
-        emailBody: selectedEmail.body,
+        emailBody: activeEmail.body,
         urlList: urls,
       };
 
@@ -101,22 +104,57 @@ export function Inbox() {
   };
 
   const handleSummarizeClick = async () => {
-    if (!selectedEmail) return;
+    if (!activeEmail) return;
 
     setSummarizationState({ status: 'loading', result: null, error: null });
     setIsSummaryDialogOpen(true);
 
-    const { data, error } = await summarizeEmailAction({ emailBody: selectedEmail.body });
+    const { data, error } = await summarizeEmailAction({ emailBody: activeEmail.body });
 
     if (error) {
       setSummarizationState({ status: 'error', result: null, error });
-      toast({ variant: 'destructive', title: 'Summarization Failed', description: error });
-      // Don't close the dialog on error, show error message instead
     } else {
       setSummarizationState({ status: 'success', result: data, error: null });
     }
   }
+
+  const toggleSelection = (emailId: string) => {
+    setSelectedEmailIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(emailId)) {
+        newSet.delete(emailId);
+      } else {
+        newSet.add(emailId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEmailIds.size === inboxViewEmails.length) {
+      setSelectedEmailIds(new Set());
+    } else {
+      setSelectedEmailIds(new Set(inboxViewEmails.map(e => e.id)));
+    }
+  };
+
+  const toggleStarred = (e: React.MouseEvent, emailId: string) => {
+    e.stopPropagation();
+    setEmails(emails.map(email => 
+      email.id === emailId ? { ...email, starred: !email.starred } : email
+    ));
+  };
   
+  const moveSelectedToTrash = () => {
+    setEmails(emails.map(email => 
+      selectedEmailIds.has(email.id) ? { ...email, status: 'trash' } : email
+    ));
+    const newActiveEmail = emails.find(e => e.status === 'inbox' && !selectedEmailIds.has(e.id));
+    setActiveEmailId(newActiveEmail?.id || null);
+    setSelectedEmailIds(new Set());
+    toast({ title: `${selectedEmailIds.size} conversation(s) moved to the bin.`});
+  };
+
   const renderProcessedBody = () => {
     if (!processedEmailBody) {
       return (
@@ -239,134 +277,167 @@ export function Inbox() {
     return <div className="prose prose-sm dark:prose-invert max-w-none">{elements.map(toReactNode)}</div>;
   };
 
-
   return (
     <>
-    <div className="h-full flex flex-col">
-       <div className="p-4 border-b">
-        <h1 className="text-3xl font-bold font-headline">Inbox</h1>
-        <p className="text-muted-foreground">You have {inboxEmails.filter(e => e.unread).length} unread messages.</p>
-       </div>
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
-        <div className="col-span-1 border-r flex flex-col">
-          <ScrollArea>
-            <div className="flex flex-col">
-              {inboxEmails.map((email) => (
-                <button
-                  key={email.id}
-                  onClick={() => setSelectedEmail(email)}
-                  className={cn(
-                    'flex flex-col items-start gap-2 p-4 text-left text-sm transition-colors hover:bg-accent',
-                    selectedEmail?.id === email.id && 'bg-accent'
-                  )}
-                >
-                   <div className="flex w-full items-start gap-3">
-                      <Avatar className="size-8">
-                        <AvatarImage src={email.from.avatar} alt={email.from.name} />
-                        <AvatarFallback>{email.from.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className={cn("font-semibold", email.unread && "font-bold")}>
-                              {email.from.name}
-                            </p>
-                            <p className={cn(
-                              "text-xs text-muted-foreground",
-                              email.unread && "font-bold text-foreground"
-                            )}>
-                              {format(new Date(email.date), 'PP')}
-                            </p>
-                          </div>
-                           <p className={cn("text-sm", email.unread && "font-bold")}>{email.subject}</p>
-                           <p className="text-xs text-muted-foreground line-clamp-1">{email.snippet}</p>
-                      </div>
-                   </div>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col">
-          {selectedEmail ? (
-            <>
-              <div className="flex items-center p-4 border-b gap-2 flex-wrap">
-                 <Button onClick={handleAnalyzeClick}><Bot /> Analyze with AI</Button>
-                 <Button onClick={handleSummarizeClick} variant="outline" disabled={summarizationState.status === 'loading'}><FileText /> Summarize</Button>
-                <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
-                <Button variant="ghost" size="icon"><Reply /><span className="sr-only">Reply</span></Button>
-                <Button variant="ghost" size="icon"><Archive /><span className="sr-only">Archive</span></Button>
-                <Button variant="ghost" size="icon"><Trash /><span className="sr-only">Delete</span></Button>
-                <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
-                  <Clock className="size-4" />
-                  <span>{format(new Date(selectedEmail.date), 'PPP p')}</span>
-                </div>
-              </div>
-              <ScrollArea className="flex-1 p-4 md:p-6">
-                <h2 className="text-2xl font-bold font-headline mb-4">{selectedEmail.subject}</h2>
-                <div className="flex items-center gap-4 mb-6">
-                   <Avatar className="size-10">
-                        <AvatarImage src={selectedEmail.from.avatar} alt={selectedEmail.from.name} />
-                        <AvatarFallback>{selectedEmail.from.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="font-semibold">{selectedEmail.from.name}</p>
-                        <p className="text-sm text-muted-foreground">{selectedEmail.from.email}</p>
-                    </div>
-                </div>
-                {renderProcessedBody()}
-                {selectedEmail.tags && selectedEmail.tags.length > 0 && (
-                    <div className="mt-6 flex gap-2">
-                        {selectedEmail.tags.map(tag => (
-                            <Badge key={tag} variant="secondary">{tag}</Badge>
-                        ))}
-                    </div>
-                )}
-              </ScrollArea>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <MailIcon className="size-16 text-muted-foreground/50" />
-              <h2 className="mt-4 text-xl font-semibold">No Email Selected</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Please select an email to view its content.</p>
-            </div>
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-3xl font-bold font-headline">Inbox</h1>
+            <p className="text-muted-foreground">You have {inboxViewEmails.filter(e => e.unread).length} unread messages.</p>
+          </div>
+          {selectedEmailIds.size > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={moveSelectedToTrash}>
+                    <Trash className="size-5" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
-      </div>
-    </div>
-    <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <FileText /> Email Summary
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              AI-generated summary of the selected email.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto p-1">
-            {summarizationState.status === 'loading' && (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="animate-spin text-primary" size={32} />
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
+          <div className="col-span-1 border-r flex flex-col">
+            <div className="p-2 border-b">
+              <div className="flex items-center gap-2 p-2">
+                <Checkbox
+                  id="select-all"
+                  checked={selectedEmailIds.size === inboxViewEmails.length && inboxViewEmails.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+                <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
+              </div>
+            </div>
+            <ScrollArea>
+              <div className="flex flex-col">
+                {inboxViewEmails.map((email) => (
+                  <div
+                    key={email.id}
+                    onClick={() => setActiveEmailId(email.id)}
+                    className={cn(
+                      'flex items-start gap-2 p-3 text-left text-sm transition-colors cursor-pointer border-b',
+                      'hover:bg-accent',
+                      activeEmailId === email.id && 'bg-accent',
+                      email.unread && 'bg-primary/5'
+                    )}
+                  >
+                    <div className="flex items-center gap-3 pt-1">
+                      <Checkbox
+                        checked={selectedEmailIds.has(email.id)}
+                        onCheckedChange={() => toggleSelection(email.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select email from ${email.from.name}`}
+                      />
+                      <button onClick={(e) => toggleStarred(e, email.id)}>
+                        <Star className={cn("size-4", email.starred ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground')} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-hidden" onClick={() => setActiveEmailId(email.id)}>
+                        <div className="flex items-center justify-between">
+                          <p className={cn("font-semibold truncate", email.unread && "font-bold")}>
+                            {email.from.name}
+                          </p>
+                          <p className={cn("text-xs text-muted-foreground", email.unread && "font-bold text-foreground")}>
+                            {format(new Date(email.date), 'PP')}
+                          </p>
+                        </div>
+                         <p className={cn("text-sm truncate", email.unread && "font-bold")}>{email.subject}</p>
+                         <p className="text-xs text-muted-foreground line-clamp-1">{email.snippet}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col">
+            {activeEmail ? (
+              <>
+                <div className="flex items-center p-4 border-b gap-2 flex-wrap">
+                   <Button onClick={handleAnalyzeClick}><Bot /> Analyze with AI</Button>
+                   <Button onClick={handleSummarizeClick} variant="outline" disabled={summarizationState.status === 'loading'}><FileText /> Summarize</Button>
+                  <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
+                  <Button variant="ghost" size="icon"><Reply /><span className="sr-only">Reply</span></Button>
+                  <Button variant="ghost" size="icon"><Archive /><span className="sr-only">Archive</span></Button>
+                  <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
+                    <Clock className="size-4" />
+                    <span>{format(new Date(activeEmail.date), 'PPP p')}</span>
+                  </div>
+                </div>
+                <ScrollArea className="flex-1 p-4 md:p-6">
+                  <div className="flex justify-between items-start">
+                    <h2 className="text-2xl font-bold font-headline mb-4">{activeEmail.subject}</h2>
+                    <button onClick={(e) => toggleStarred(e, activeEmail.id)}>
+                        <Star className={cn("size-5", activeEmail.starred ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground hover:text-yellow-400')} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-4 mb-6">
+                     <Avatar className="size-10">
+                          <AvatarImage src={activeEmail.from.avatar} alt={activeEmail.from.name} />
+                          <AvatarFallback>{activeEmail.from.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                          <p className="font-semibold">{activeEmail.from.name}</p>
+                          <p className="text-sm text-muted-foreground">{activeEmail.from.email}</p>
+                      </div>
+                  </div>
+                  {renderProcessedBody()}
+                  {activeEmail.tags && activeEmail.tags.length > 0 && (
+                      <div className="mt-6 flex gap-2">
+                          {activeEmail.tags.map(tag => (
+                              <Badge key={tag} variant="secondary">{tag}</Badge>
+                          ))}
+                      </div>
+                  )}
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <MailIcon className="size-16 text-muted-foreground/50" />
+                <h2 className="mt-4 text-xl font-semibold">No Email Selected</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{inboxViewEmails.length > 0 ? "Please select an email to view its content." : "Your inbox is empty."}</p>
               </div>
             )}
-            {summarizationState.status === 'error' && (
-              <p className="text-destructive">{summarizationState.error}</p>
-            )}
-            {summarizationState.status === 'success' && summarizationState.result && (
-              <div
-                className="prose prose-sm dark:prose-invert"
-                dangerouslySetInnerHTML={{
-                  __html: summarizationState.result.summary.replace(/•/g, '<li>'),
-                }}
-              />
-            )}
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
+        </div>
+      </div>
+      <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <FileText /> Email Summary
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                AI-generated summary of the selected email.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto p-1">
+              {summarizationState.status === 'loading' && (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="animate-spin text-primary" size={32} />
+                </div>
+              )}
+              {summarizationState.status === 'error' && (
+                <p className="text-destructive">{summarizationState.error}</p>
+              )}
+              {summarizationState.status === 'success' && summarizationState.result && (
+                <div
+                  className="prose prose-sm dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: summarizationState.result.summary.replace(/•/g, '<li>'),
+                  }}
+                />
+              )}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
 }
