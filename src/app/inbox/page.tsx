@@ -1,4 +1,6 @@
+
 'use client';
+import { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,17 +14,30 @@ import {
 } from '@/components/ui/sidebar';
 import { Inbox } from '@/components/guardian-mail/inbox';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
+import type { SentEmail } from '@/lib/types';
+
 
 export default function InboxPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  
+  // This state would ideally be managed globally (e.g., in a context or state manager)
+  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+
+  const handleEmailSent = (email: SentEmail) => {
+    setSentEmails(prev => [...prev, email]);
+  };
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -49,6 +64,12 @@ export default function InboxPage() {
           <Logo />
         </SidebarHeader>
         <SidebarContent>
+           <div className="p-2">
+            <Button className="w-full" onClick={() => setIsComposeOpen(true)}>
+              <Pencil />
+              <span>Compose</span>
+            </Button>
+          </div>
           <SidebarMenu>
             <SidebarMenuItem>
               <Link href="/">
@@ -120,6 +141,7 @@ export default function InboxPage() {
       <SidebarInset>
         <Inbox />
       </SidebarInset>
+      <ComposeDialog open={isComposeOpen} onOpenChange={setIsComposeOpen} onEmailSent={handleEmailSent} />
     </SidebarProvider>
   );
 }

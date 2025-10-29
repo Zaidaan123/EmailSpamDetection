@@ -53,4 +53,15 @@ export type InboxEmail = {
     tags: string[];
 };
 
+export type SentEmail = {
+  id: string;
+  to: {
+    name: string;
+    email: string;
+  };
+  subject: string;
+  body: string;
+  date: string;
+};
+
 export type EmailForAnalysis = DetectPhishingEmailInput;

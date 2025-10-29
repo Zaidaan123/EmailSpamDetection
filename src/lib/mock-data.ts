@@ -1,4 +1,4 @@
-import type { MockEmail, InboxEmail } from '@/lib/types';
+import type { MockEmail, InboxEmail, SentEmail } from '@/lib/types';
 
 export const mockEmails: MockEmail[] = [
   {
@@ -97,4 +97,14 @@ export const inboxEmails: InboxEmail[] = [
         unread: false,
         tags: ['social'],
     }
+];
+
+export const sentEmails: SentEmail[] = [
+    {
+      id: 'sent-1',
+      to: { name: 'Project Team', email: 'team@example.com' },
+      subject: 'Re: Project discussion',
+      body: '<p>Great ideas, Alice. Let\'s schedule a meeting to go over them in detail.</p>',
+      date: '2024-05-20T11:00:00Z',
+    },
 ];

@@ -1,5 +1,6 @@
-'use client';
 
+'use client';
+import { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -13,17 +14,28 @@ import {
 } from '@/components/ui/sidebar';
 import { GuardianMailDashboard } from '@/components/guardian-mail/dashboard';
 import { Logo } from '@/components/guardian-mail/logo';
-import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle } from 'lucide-react';
+import { Bot, LayoutDashboard, LogOut, Mail, Send, ShieldAlert, Settings, UserCircle, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { ComposeDialog } from '@/components/guardian-mail/compose-dialog';
+import type { SentEmail } from '@/lib/types';
+
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+
+  const handleEmailSent = (email: SentEmail) => {
+    setSentEmails(prev => [...prev, email]);
+  };
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -50,6 +62,12 @@ export default function Home() {
           <Logo />
         </SidebarHeader>
         <SidebarContent>
+           <div className="p-2">
+            <Button className="w-full" onClick={() => setIsComposeOpen(true)}>
+              <Pencil />
+              <span>Compose</span>
+            </Button>
+          </div>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton tooltip="Dashboard" isActive>
@@ -117,6 +135,7 @@ export default function Home() {
       <SidebarInset>
         <GuardianMailDashboard />
       </SidebarInset>
+      <ComposeDialog open={isComposeOpen} onOpenChange={setIsComposeOpen} onEmailSent={handleEmailSent} />
     </SidebarProvider>
   );
 }
