@@ -1,4 +1,4 @@
-import type { DetectPhishingEmailOutput } from '@/ai/flows/phishing-email-detection';
+import type { DetectPhishingEmailInput, DetectPhishingEmailOutput } from '@/ai/flows/phishing-email-detection';
 import type { UrlRiskAssessmentOutput } from '@/ai/flows/url-risk-assessment';
 import type { AiAssistedReplyOutput } from '@/ai/flows/ai-assisted-reply';
 
@@ -45,3 +45,5 @@ export type InboxEmail = {
     unread: boolean;
     tags: string[];
 };
+
+export type EmailForAnalysis = DetectPhishingEmailInput;

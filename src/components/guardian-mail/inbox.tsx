@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 import type { InboxEmail } from '@/lib/types';
 import { inboxEmails } from '@/lib/mock-data';
@@ -11,10 +12,39 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Archive, Clock, Mail as MailIcon, Reply, Trash } from 'lucide-react';
+import { Archive, Bot, Clock, Mail as MailIcon, Reply, Trash } from 'lucide-react';
+import { useDashboardState } from '@/hooks/use-dashboard-state';
 
 export function Inbox() {
   const [selectedEmail, setSelectedEmail] = useState<InboxEmail | null>(inboxEmails[0]);
+  const { setAnalyzeEmailFromInbox } = useDashboardState();
+  const router = useRouter();
+
+
+  const handleAnalyzeClick = () => {
+    if (selectedEmail) {
+      // Basic regex to find URLs in the HTML body
+      const urlRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g;
+      const urls = [];
+      let match;
+      while ((match = urlRegex.exec(selectedEmail.body)) !== null) {
+        urls.push(match[2]);
+      }
+      
+      const emailDataForAnalysis = {
+        emailSubject: selectedEmail.subject,
+        // Extract domain from email
+        senderDomain: selectedEmail.from.email.split('@')[1] || 'unknown.com',
+        // Using a placeholder IP as it's not available in mock data
+        senderIp: '127.0.0.1', 
+        emailBody: selectedEmail.body,
+        urlList: urls,
+      };
+
+      setAnalyzeEmailFromInbox(emailDataForAnalysis);
+      router.push('/');
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -64,12 +94,14 @@ export function Inbox() {
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col">
           {selectedEmail ? (
             <>
-              <div className="flex items-center p-4 border-b gap-2">
+              <div className="flex items-center p-4 border-b gap-2 flex-wrap">
+                 <Button onClick={handleAnalyzeClick}><Bot /> Analyze with AI</Button>
+                <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
                 <Button variant="ghost" size="icon"><Reply /><span className="sr-only">Reply</span></Button>
                 <Button variant="ghost" size="icon"><Archive /><span className="sr-only">Archive</span></Button>
                 <Button variant="ghost" size="icon"><Trash /><span className="sr-only">Delete</span></Button>
-                <Separator orientation="vertical" className="h-6 mx-2" />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Separator orientation="vertical" className="h-6 mx-2 hidden md:block" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
                   <Clock className="size-4" />
                   <span>{format(new Date(selectedEmail.date), 'PPP p')}</span>
                 </div>

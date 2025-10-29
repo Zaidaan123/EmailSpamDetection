@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AlertTriangle, Bot, Clipboard, Copy, FlaskConical, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { AlertTriangle, Bot, Copy, FlaskConical, Loader2, Sparkles, Wand2 } from 'lucide-react';
 
 import { analyzeEmailAction, analyzeUrlAction, generateReplyAction } from '@/app/actions';
 import type { EmailAnalysisState, ReplyGenerationState, UrlAnalysisState } from '@/lib/types';
 import { mockEmails } from '@/lib/mock-data';
+import { useDashboardState } from '@/hooks/use-dashboard-state';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,13 +23,14 @@ import { RiskScoreIndicator } from './risk-score-indicator';
 import { Skeleton } from '../ui/skeleton';
 import { Separator } from '../ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Label } from '../ui/label';
 
 const emailSchema = z.object({
   emailSubject: z.string().min(1, 'Subject is required.'),
   senderDomain: z.string().min(1, 'Sender domain is required.'),
   senderIp: z.string().ip({ message: 'Please enter a valid IP address.' }),
   emailBody: z.string().min(1, 'Email body is required.'),
-  urlList: z.array(z.string()).optional(),
+  urlList: z.array(z.string().url()).optional(),
 });
 
 const urlSchema = z.object({
@@ -37,7 +39,8 @@ const urlSchema = z.object({
 
 export function GuardianMailDashboard() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('email');
+  const { analyzeEmailFromInbox, clearAnalyzeEmailFromInbox } = useDashboardState();
+  const [activeTab, setActiveTab] = useState(analyzeEmailFromInbox ? 'email' : 'url');
 
   const [emailState, setEmailState] = useState<EmailAnalysisState>({ status: 'idle', result: null, error: null });
   const [urlState, setUrlState] = useState<UrlAnalysisState>({ status: 'idle', result: null, error: null });
@@ -53,7 +56,7 @@ export function GuardianMailDashboard() {
     defaultValues: { url: '' },
   });
 
-  const handleEmailSubmit = async (values: z.infer<typeof emailSchema>) => {
+  const handleEmailSubmit = useCallback(async (values: z.infer<typeof emailSchema>) => {
     setEmailState({ status: 'loading', result: null, error: null });
     setReplyState({ status: 'idle', result: null, error: null });
     const { data, error } = await analyzeEmailAction(values);
@@ -63,7 +66,17 @@ export function GuardianMailDashboard() {
     } else {
       setEmailState({ status: 'success', result: data, error: null });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (analyzeEmailFromInbox) {
+      emailForm.reset(analyzeEmailFromInbox);
+      handleEmailSubmit(analyzeEmailFromInbox);
+      clearAnalyzeEmailFromInbox();
+      setActiveTab('email');
+    }
+  }, [analyzeEmailFromInbox, emailForm, handleEmailSubmit, clearAnalyzeEmailFromInbox]);
+
 
   const handleUrlSubmit = async (values: z.infer<typeof urlSchema>) => {
     setUrlState({ status: 'loading', result: null, error: null });
@@ -98,7 +111,13 @@ export function GuardianMailDashboard() {
 
   const loadMockEmail = (index: number) => {
     const email = mockEmails[index];
-    emailForm.reset(email);
+    emailForm.reset({
+      emailSubject: email.subject,
+      senderDomain: email.senderDomain,
+      senderIp: email.senderIp,
+      emailBody: email.body,
+      urlList: email.urlList
+    });
     setEmailState({ status: 'idle', result: null, error: null });
     setReplyState({ status: 'idle', result: null, error: null });
   };
@@ -326,3 +345,4 @@ export function GuardianMailDashboard() {
     </div>
   );
 }
+    
