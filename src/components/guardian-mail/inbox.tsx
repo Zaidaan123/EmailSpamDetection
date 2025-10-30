@@ -24,6 +24,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { useEmailState } from '@/hooks/use-email-state';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const RiskIcon = ({ riskLevel }: { riskLevel?: EmailRiskLevel }) => {
     if (!riskLevel || riskLevel === 'unknown') return null;
@@ -420,6 +421,15 @@ export function Inbox() {
                   </div>
                 </div>
                 <ScrollArea className="flex-1 p-4 md:p-6">
+                  {activeEmail.riskLevel && (activeEmail.riskLevel === 'high' || activeEmail.riskLevel === 'medium') && (
+                    <Alert variant={activeEmail.riskLevel === 'high' ? 'destructive' : 'default'} className={cn('mb-4', activeEmail.riskLevel === 'medium' && 'bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-500')}>
+                      <ShieldAlert className="h-4 w-4" />
+                      <AlertTitle className="font-bold">Security Warning</AlertTitle>
+                      <AlertDescription>
+                        This email has been flagged as **{activeEmail.riskLevel} risk**. Please be cautious with links and attachments.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="flex justify-between items-start">
                     <h2 className="text-2xl font-bold font-headline mb-4">{activeEmail.subject}</h2>
                     <button onClick={(e) => toggleStarred(e, activeEmail.id)}>
@@ -492,5 +502,3 @@ export function Inbox() {
       </TooltipProvider>
     );
 }
-
-    
