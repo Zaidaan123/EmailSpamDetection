@@ -1,7 +1,7 @@
 import type { DetectPhishingEmailInput, DetectPhishingEmailOutput } from '@/ai/flows/phishing-email-detection';
 import type { UrlRiskAssessmentOutput } from '@/ai/flows/url-risk-assessment';
 import type { AiAssistedReplyOutput } from '@/ai/flows/ai-assisted-reply';
-import type { SummarizeEmailOutput } from '@/aiflows/summarize-email';
+import type { SummarizeEmailOutput } from '@/ai/flows/summarize-email';
 import type { SecurityBriefingOutput } from '@/ai/flows/security-briefing';
 import type { SecurityCoachOutput } from '@/ai/flows/security-coach';
 
@@ -46,6 +46,8 @@ export type MockEmail = {
   urlList: string[];
 };
 
+export type EmailRiskLevel = 'low' | 'medium' | 'high' | 'analyzing' | 'unknown';
+
 export type InboxEmail = {
     id: string;
     from: {
@@ -61,6 +63,7 @@ export type InboxEmail = {
     starred: boolean;
     status: 'inbox' | 'trash';
     tags: string[];
+    riskLevel?: EmailRiskLevel;
 };
 
 export type SentEmail = {

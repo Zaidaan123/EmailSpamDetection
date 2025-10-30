@@ -2,11 +2,11 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-import type { InboxEmail, SummarizationState } from '@/lib/types';
+import type { InboxEmail, SummarizationState, EmailRiskLevel, UserSettings } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +17,34 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Archive, Bot, Clock, Loader2, Mail as MailIcon, Reply, Trash, FileText, Shield, ShieldCheck, ShieldAlert, Star } from 'lucide-react';
 import { useDashboardState } from '@/hooks/use-dashboard-state';
-import { summarizeEmailAction, analyzeUrlAction } from '@/app/actions';
+import { summarizeEmailAction, analyzeUrlAction, analyzeEmailAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useEmailState } from '@/hooks/use-email-state';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc } from 'firebase/firestore';
+
+const RiskIcon = ({ riskLevel }: { riskLevel?: EmailRiskLevel }) => {
+    if (!riskLevel || riskLevel === 'unknown') return null;
+    if (riskLevel === 'analyzing') {
+        return <TooltipTrigger asChild><Loader2 className="size-4 text-muted-foreground animate-spin" /></TooltipTrigger>;
+    }
+
+    const icons = {
+        low: { Icon: ShieldCheck, color: 'text-green-500', label: 'Low Risk' },
+        medium: { Icon: ShieldAlert, color: 'text-yellow-500', label: 'Medium Risk' },
+        high: { Icon: ShieldAlert, color: 'text-red-500', label: 'High Risk' },
+    };
+
+    const { Icon, color, label } = icons[riskLevel];
+
+    return (
+        <TooltipTrigger asChild>
+            <Icon className={cn("size-4", color)} aria-label={label} />
+        </TooltipTrigger>
+    );
+};
 
 export function Inbox() {
   const { inboxEmails, setInboxEmails } = useEmailState();
@@ -36,8 +59,67 @@ export function Inbox() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const settingsDocRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'settings', 'ai');
+  }, [firestore, user]);
+
+  const { data: userSettings } = useDoc<UserSettings>(settingsDocRef);
+
   const activeEmail = useMemo(() => inboxEmails.find(email => email.id === activeEmailId), [inboxEmails, activeEmailId]);
   const inboxViewEmails = useMemo(() => inboxEmails.filter(e => e.status === 'inbox'), [inboxEmails]);
+
+  const runBulkAnalysis = useCallback(async () => {
+    const emailsToAnalyze = inboxEmails.filter(e => e.status === 'inbox' && !e.riskLevel);
+    if (emailsToAnalyze.length === 0) return;
+
+    // Mark emails as 'analyzing' in the UI immediately
+    setInboxEmails(currentEmails =>
+      currentEmails.map(e => emailsToAnalyze.find(a => a.id === e.id) ? { ...e, riskLevel: 'analyzing' } : e)
+    );
+
+    const sensitivity = userSettings ? userSettings.sensitivity / 100 : 0.5;
+
+    const analysisPromises = emailsToAnalyze.map(async (email) => {
+      const urlRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g;
+      const urls = Array.from(email.body.matchAll(urlRegex), m => m[2]);
+
+      const { data, error } = await analyzeEmailAction({
+        emailSubject: email.subject,
+        senderDomain: email.from.email.split('@')[1] || 'unknown.com',
+        emailBody: email.body,
+        urlList: urls,
+        sensitivity: sensitivity,
+      });
+
+      let riskLevel: EmailRiskLevel = 'low';
+      if (error) {
+        riskLevel = 'unknown';
+      } else if (data) {
+        if (data.isPhishing) {
+          riskLevel = data.phishingScore > 0.7 ? 'high' : 'medium';
+        }
+      }
+      return { id: email.id, riskLevel };
+    });
+
+    const results = await Promise.all(analysisPromises);
+    
+    setInboxEmails(currentEmails =>
+      currentEmails.map(e => {
+        const result = results.find(r => r.id === e.id);
+        return result ? { ...e, riskLevel: result.riskLevel } : e;
+      })
+    );
+  }, [inboxEmails, setInboxEmails, userSettings]);
+
+  useEffect(() => {
+    runBulkAnalysis();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userSettings]); // Run when settings (sensitivity) are loaded/changed
 
   useEffect(() => {
     if (activeEmail) {
@@ -99,7 +181,7 @@ export function Inbox() {
       const emailDataForAnalysis = {
         emailSubject: activeEmail.subject,
         senderDomain: activeEmail.from.email.split('@')[1] || 'unknown.com',
-        senderIp: '209.85.220.41', 
+        senderIp: '203.0.113.15', 
         emailBody: activeEmail.body,
         urlList: urls,
       };
@@ -241,7 +323,7 @@ export function Inbox() {
   };
 
   return (
-    <>
+    <TooltipProvider>
       <div className="h-full flex flex-col">
         <div className="p-4 border-b flex items-center justify-between gap-2">
           <div>
@@ -249,17 +331,15 @@ export function Inbox() {
             <p className="text-muted-foreground">You have {inboxViewEmails.filter(e => e.unread).length} unread messages.</p>
           </div>
           {selectedEmailIds.size > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={moveSelectedToTrash}>
-                    <Trash className="size-5" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={moveSelectedToTrash}>
+                  <Trash className="size-5" />
+                  <span className="sr-only">Delete</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
           )}
         </div>
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
@@ -308,7 +388,15 @@ export function Inbox() {
                             {format(new Date(email.date), 'PP')}
                           </p>
                         </div>
-                         <p className={cn("text-sm truncate", email.unread && "font-bold")}>{email.subject}</p>
+                         <div className="flex items-center gap-2">
+                            <Tooltip>
+                                <RiskIcon riskLevel={email.riskLevel} />
+                                <TooltipContent>
+                                    <p>{email.riskLevel === 'analyzing' ? 'Analyzing...' : `This email is considered ${email.riskLevel} risk.`}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            <p className={cn("text-sm truncate", email.unread && "font-bold")}>{email.subject}</p>
+                        </div>
                          <p className="text-xs text-muted-foreground line-clamp-1">{email.snippet}</p>
                     </div>
                   </div>
@@ -401,7 +489,7 @@ export function Inbox() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </>
+      </TooltipProvider>
     );
 }
 
